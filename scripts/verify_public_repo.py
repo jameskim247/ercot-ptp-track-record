@@ -70,10 +70,26 @@ OUTCOME_SUMMARY_COLUMNS = (
 
 DAILY_LEDGER = Path("hashes/daily_manifest_hashes.csv")
 BACKFILL_LEDGER = Path("hashes/backfill_manifest_hashes.csv")
+TIMESTAMP_PROOFS = Path("hashes/timestamp_proofs.csv")
 OUTCOME_SUMMARIES = Path("reports/audits/daily_outcome_summaries.csv")
 ATTESTATION_ROOT = Path("attestations/private_manifest")
 ATTESTATION_ALLOWED_SIGNERS = Path("attestations/allowed_signers")
 ATTESTATION_SIGNATURE_NAMESPACE = "ercot-ptp-track-record-manifest-v1"
+
+TIMESTAMP_PROOF_COLUMNS = (
+    "as_of_date",
+    "delivery_date",
+    "carrier",
+    "manifest_sha256",
+    "public_ledger_row_sha256",
+    "timestamp_status",
+    "proof_input_path",
+    "proof_input_sha256",
+    "opentimestamps_proof_path",
+    "opentimestamps_proof_sha256",
+    "timestamped_at_utc",
+    "notes",
+)
 
 FORBIDDEN_PATH_PATTERNS = (
     re.compile(r"(^|/)scored_signals_\d{4}-\d{2}-\d{2}\.(csv|json|parquet)$", re.IGNORECASE),
@@ -124,6 +140,14 @@ def _ledger_row_sha256(row: dict[str, str]) -> str:
     return _sha256_json({name: row.get(name, "") for name in LEDGER_COLUMNS})
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _read_base_csv_rows(
     root: Path,
     *,
@@ -146,27 +170,12 @@ def _read_base_csv_rows(
     return list(reader), []
 
 
-def _is_timestamp_only_upgrade(prior: dict[str, str], current: dict[str, str]) -> bool:
-    for column in LEDGER_COLUMNS:
-        if column in {"timestamp_status", "opentimestamps_proof_path"}:
-            continue
-        if prior.get(column, "") != current.get(column, ""):
-            return False
-    return (
-        prior.get("timestamp_status") == "timestamp_pending"
-        and not prior.get("opentimestamps_proof_path")
-        and current.get("timestamp_status") == "opentimestamps_proof"
-        and bool(current.get("opentimestamps_proof_path"))
-    )
-
-
 def _verify_append_only_csv(
     root: Path,
     *,
     relpath: Path,
     columns: tuple[str, ...],
     base_ref: str,
-    allow_timestamp_upgrade: bool = False,
 ) -> list[str]:
     current_rows, current_errors = _read_csv_rows(root / relpath, columns)
     if current_errors:
@@ -182,8 +191,6 @@ def _verify_append_only_csv(
         actual = {name: current.get(name, "") for name in columns}
         if actual == expected:
             continue
-        if allow_timestamp_upgrade and _is_timestamp_only_upgrade(prior, current):
-            continue
         return [f"{relpath.as_posix()} is not append-only: prior row {idx + 2} was modified"]
     return []
 
@@ -197,7 +204,6 @@ def _verify_daily_ledger(root: Path, append_only_base_ref: str | None) -> tuple[
                 relpath=DAILY_LEDGER,
                 columns=LEDGER_COLUMNS,
                 base_ref=append_only_base_ref,
-                allow_timestamp_upgrade=True,
             )
         )
 
@@ -222,11 +228,15 @@ def _verify_daily_ledger(root: Path, append_only_base_ref: str | None) -> tuple[
         if row["timestamp_status"] not in ALLOWED_TIMESTAMP_STATUSES:
             errors.append(f"daily ledger line {idx} has unexpected timestamp_status={row['timestamp_status']!r}")
         proof_path = row["opentimestamps_proof_path"]
+        if row["timestamp_status"] == "timestamp_pending" and proof_path:
+            errors.append(f"daily ledger line {idx} pending timestamp row must not have proof path")
         if row["timestamp_status"] == "opentimestamps_proof":
             if not proof_path:
                 errors.append(f"daily ledger line {idx} missing opentimestamps_proof_path")
             elif not proof_path.startswith("hashes/opentimestamps/"):
                 errors.append(f"daily ledger line {idx} proof path must be under hashes/opentimestamps/")
+        if row["timestamp_status"] == "timestamp_failed_giving_up" and proof_path:
+            errors.append(f"daily ledger line {idx} failed timestamp row must not have proof path")
         if proof_path and not (root / proof_path).is_file():
             errors.append(f"daily ledger line {idx} proof path does not exist: {proof_path}")
         correction_of = row["correction_of_manifest_sha256"]
@@ -308,6 +318,82 @@ def _verify_outcome_summaries(
             or ledger_row["methodology_version"] != row["methodology_version"]
         ):
             errors.append(f"outcome summary line {idx} does not match referenced ledger row")
+    return errors
+
+
+def _verify_timestamp_proofs(
+    root: Path,
+    *,
+    ledger_rows: list[dict[str, str]],
+    append_only_base_ref: str | None,
+) -> list[str]:
+    path = root / TIMESTAMP_PROOFS
+    errors: list[str] = []
+    if not path.exists():
+        if any(row.get("timestamp_status") == "opentimestamps_proof" for row in ledger_rows):
+            errors.append(f"missing timestamp proof ledger: {TIMESTAMP_PROOFS.as_posix()}")
+        return errors
+    rows, row_errors = _read_csv_rows(path, TIMESTAMP_PROOF_COLUMNS)
+    errors.extend(row_errors)
+    if row_errors:
+        return errors
+    if append_only_base_ref:
+        errors.extend(
+            _verify_append_only_csv(
+                root,
+                relpath=TIMESTAMP_PROOFS,
+                columns=TIMESTAMP_PROOF_COLUMNS,
+                base_ref=append_only_base_ref,
+            )
+        )
+    ledger_by_manifest = {row["manifest_sha256"]: row for row in ledger_rows if row.get("manifest_sha256")}
+    seen: set[str] = set()
+    proof_by_manifest: dict[str, dict[str, str]] = {}
+    for idx, row in enumerate(rows, start=2):
+        manifest_sha = row["manifest_sha256"]
+        if manifest_sha in seen:
+            errors.append(f"duplicate timestamp proof row at line {idx}: {manifest_sha}")
+        seen.add(manifest_sha)
+        proof_by_manifest[manifest_sha] = row
+        ledger_row = ledger_by_manifest.get(manifest_sha)
+        if ledger_row is None:
+            errors.append(f"timestamp proof line {idx} does not reference a public ledger manifest")
+            continue
+        if (
+            ledger_row["as_of_date"] != row["as_of_date"]
+            or ledger_row["delivery_date"] != row["delivery_date"]
+            or ledger_row["carrier"] != row["carrier"]
+        ):
+            errors.append(f"timestamp proof line {idx} does not match referenced ledger row")
+        if row["public_ledger_row_sha256"] != _ledger_row_sha256(ledger_row):
+            errors.append(f"timestamp proof line {idx} has wrong public_ledger_row_sha256")
+        if row["timestamp_status"] != "opentimestamps_proof":
+            errors.append(f"timestamp proof line {idx} has unexpected timestamp_status={row['timestamp_status']!r}")
+        proof_input_path = row["proof_input_path"]
+        proof_path = row["opentimestamps_proof_path"]
+        if not proof_input_path.startswith("hashes/opentimestamps/"):
+            errors.append(f"timestamp proof line {idx} proof_input_path must be under hashes/opentimestamps/")
+        if not proof_path.startswith("hashes/opentimestamps/"):
+            errors.append(f"timestamp proof line {idx} opentimestamps_proof_path must be under hashes/opentimestamps/")
+        for column, digest_column in (
+            ("proof_input_path", "proof_input_sha256"),
+            ("opentimestamps_proof_path", "opentimestamps_proof_sha256"),
+        ):
+            relpath = row[column]
+            artifact = root / relpath
+            if not artifact.is_file():
+                errors.append(f"timestamp proof line {idx} missing artifact: {relpath}")
+                continue
+            if row[digest_column] != _sha256_file(artifact):
+                errors.append(f"timestamp proof line {idx} {digest_column} does not match artifact")
+    for idx, ledger_row in enumerate(ledger_rows, start=2):
+        if ledger_row.get("timestamp_status") != "opentimestamps_proof":
+            continue
+        proof_row = proof_by_manifest.get(ledger_row["manifest_sha256"])
+        if proof_row is None:
+            errors.append(f"daily ledger line {idx} has proof status but no timestamp proof row")
+        elif proof_row["opentimestamps_proof_path"] != ledger_row["opentimestamps_proof_path"]:
+            errors.append(f"daily ledger line {idx} proof path does not match timestamp proof row")
     return errors
 
 
@@ -457,6 +543,7 @@ def verify(root: Path, *, append_only_base_ref: str | None = None) -> list[str]:
     errors.extend(ledger_errors)
     errors.extend(_verify_backfill_ledger(root, append_only_base_ref))
     errors.extend(_verify_outcome_summaries(root, ledger_rows=ledger_rows, append_only_base_ref=append_only_base_ref))
+    errors.extend(_verify_timestamp_proofs(root, ledger_rows=ledger_rows, append_only_base_ref=append_only_base_ref))
     errors.extend(_verify_attestations(root, ledger_rows))
     errors.extend(_verify_reports(root))
     errors.extend(_verify_privacy_boundary(root))
