@@ -289,6 +289,25 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
         repo = _copy_public_fixture(Path(tmp_raw))
+        _append_terminal_timestamp_fixture(repo, verifier, notes="ots retry gave up after configured retry window")
+        _write_report_fixture(repo, verifier)
+        outcome_path = repo / verifier.OUTCOME_SUMMARIES
+        with outcome_path.open("r", encoding="utf-8", newline="") as fh:
+            rows = list(csv.DictReader(fh))
+        rows[0]["outcome_status"] = "outcome_partial"
+        with outcome_path.open("w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=verifier.OUTCOME_SUMMARY_COLUMNS)
+            writer.writeheader()
+            writer.writerows(rows)
+        errors = verifier.verify(repo)
+        if not any("must be settlement-complete" in error for error in errors):
+            print("incomplete public outcome summary should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
         proof_input = _append_pending_timestamp_fixture(repo, verifier)
         errors = verifier.verify(repo)
         if errors:
