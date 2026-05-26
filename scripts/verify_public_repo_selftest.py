@@ -308,6 +308,20 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
         repo = _copy_public_fixture(Path(tmp_raw))
+        log_path = repo / "carrier" / "operational_log.md"
+        log_path.write_text(
+            log_path.read_text(encoding="utf-8") + "source=SRC shadow_bid=99 /home/jk/private w0\n",
+            encoding="utf-8",
+        )
+        errors = verifier.verify(repo)
+        if not any("operational log contains forbidden public content pattern" in error for error in errors):
+            print("unsafe operational log should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
         proof_input = _append_pending_timestamp_fixture(repo, verifier)
         errors = verifier.verify(repo)
         if errors:

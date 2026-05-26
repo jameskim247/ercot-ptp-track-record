@@ -120,6 +120,18 @@ FORBIDDEN_CONTENT_PATTERNS = (
     re.compile(r"\bsettlement_point\b", re.IGNORECASE),
 )
 
+OPERATIONAL_LOG_FORBIDDEN_CONTENT_PATTERNS = (
+    *FORBIDDEN_CONTENT_PATTERNS,
+    re.compile(r"(^|/)\.?(?:env|ssh)(/|$)", re.IGNORECASE),
+    re.compile(r"(^|/)(?:home|root|tmp|var|mnt)/", re.IGNORECASE),
+    re.compile(r"\b(?:private_audit|private_vault|private-vault|ptp-track-record)\b", re.IGNORECASE),
+    re.compile(r"\b(?:secret|token|password|credential|webhook)\b", re.IGNORECASE),
+    re.compile(r"\b(?:AWS|GITHUB|OPENAI|TRACK_RECORD_ALERT_WEBHOOK_URL)_", re.IGNORECASE),
+    re.compile(r"\b(?:advisory_detail|advisory_debug|scored_signals|positions|book_delta)_\d{4}-\d{2}-\d{2}\b", re.IGNORECASE),
+    re.compile(r"\bw0\b", re.IGNORECASE),
+    re.compile(r"\bw31_vs_w0\b", re.IGNORECASE),
+)
+
 CONTENT_SCAN_SUFFIXES = {".csv", ".json", ".md", ".txt", ".yml", ".yaml"}
 CONTENT_SCAN_EXEMPT = {
     "scripts/verify_public_repo.py",
@@ -1229,8 +1241,14 @@ def _verify_status_docs(root: Path) -> list[str]:
         if not path.is_file():
             errors.append(f"missing generated public status doc: {relpath}")
             continue
-        if GENERATED_HEADER not in path.read_text(encoding="utf-8"):
+        text = path.read_text(encoding="utf-8")
+        if GENERATED_HEADER not in text:
             errors.append(f"public status doc missing generated header: {relpath}")
+        if relpath == "carrier/operational_log.md":
+            for pattern in OPERATIONAL_LOG_FORBIDDEN_CONTENT_PATTERNS:
+                if pattern.search(text):
+                    errors.append(f"operational log contains forbidden public content pattern {pattern.pattern!r}: {relpath}")
+                    break
     return errors
 
 
