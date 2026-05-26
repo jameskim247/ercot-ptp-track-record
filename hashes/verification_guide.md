@@ -45,7 +45,7 @@ ots verify hashes/opentimestamps/YYYY/MM/<proof>.ots
 
 Attestations under `attestations/private_manifest/` disclose only public-safe fields: carrier, dates, manifest hash, ledger row hash, verifier commit, and signature.
 
-The attestation proves that private verification ran. Full private manifests remain available only under NDA.
+The verifier checks that each attestation uses an OpenSSH signature, verifies against `attestations/allowed_signers`, and references an existing public ledger row hash. The embedded public key is informational only; `attestations/allowed_signers` is the authority anchor and key rotations must land through signed PRs. Full private manifests remain available only under NDA.
 
 ## Verify Outcome And Report Linkage
 
