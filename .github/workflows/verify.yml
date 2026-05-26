@@ -14,6 +14,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Self-test public verifier
+        run: python3 scripts/verify_public_repo_selftest.py
       - name: Verify public repo guardrails
         shell: bash
         run: |
