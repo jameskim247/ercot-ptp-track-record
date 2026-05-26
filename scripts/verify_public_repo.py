@@ -306,6 +306,8 @@ def _verify_daily_ledger(root: Path, append_only_base_ref: str | None) -> tuple[
             errors.append(f"daily ledger line {idx} missing methodology_version")
         if row["valid_day_status"] == "excluded" and not row["exclusion_reason"]:
             errors.append(f"daily ledger line {idx} excluded without exclusion_reason")
+        if row["valid_day_status"] == "invalid" and not (row["exclusion_reason"] or row["notes"]):
+            errors.append(f"daily ledger line {idx} invalid without public reason")
         if row["timestamp_status"] not in ALLOWED_TIMESTAMP_STATUSES:
             errors.append(f"daily ledger line {idx} has unexpected timestamp_status={row['timestamp_status']!r}")
         proof_path = row["opentimestamps_proof_path"]
