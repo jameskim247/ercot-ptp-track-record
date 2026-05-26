@@ -33,7 +33,9 @@ The verifier enforces this mechanically for the manifest ledgers and delayed out
 
 ## Verify Timestamp Proofs
 
-When `timestamp_status=opentimestamps_proof`, the `opentimestamps_proof_path` must exist under `hashes/opentimestamps/`.
+When `timestamp_status=opentimestamps_proof`, the `opentimestamps_proof_path` must exist under `hashes/opentimestamps/` and the same manifest must have a matching row in `hashes/timestamp_proofs.csv`.
+
+Rows that were first published with `timestamp_status=timestamp_pending` are not edited later. Successful retry evidence is appended to `hashes/timestamp_proofs.csv` instead, preserving the daily ledger as a literal append-only record.
 
 With OpenTimestamps installed:
 
