@@ -43,6 +43,12 @@ With OpenTimestamps installed:
 ots verify hashes/opentimestamps/YYYY/MM/<proof>.ots
 ```
 
+Or run the public verifier with proof verification enabled:
+
+```bash
+python3 scripts/verify_public_repo.py . --verify-opentimestamps
+```
+
 ## Verify Attestations
 
 Attestations under `attestations/private_manifest/` disclose only public-safe fields: carrier, dates, manifest hash, ledger row hash, verifier commit, and signature.

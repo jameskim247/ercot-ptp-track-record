@@ -120,6 +120,77 @@ def _append_pending_timestamp_fixture(repo: Path, verifier) -> Path:
     return proof_input
 
 
+def _append_opentimestamps_fixture(repo: Path, verifier) -> None:
+    manifest_sha = "c" * 64
+    row = {name: "" for name in verifier.LEDGER_COLUMNS}
+    row.update(
+        {
+            "as_of_date": "2026-05-26",
+            "delivery_date": "2026-05-27",
+            "carrier": "w31",
+            "model_label": "weather-w31-selftest",
+            "git_commit": "deadbeef",
+            "config_hash": "d" * 64,
+            "carrier_metadata_sha256": "e" * 64,
+            "methodology_version": "m2026.05.26.v1",
+            "prospective_or_backfill": "prospective",
+            "pipeline_status": "SUCCESS",
+            "valid_day_status": "valid",
+            "publication_time_ct": "2026-05-26T09:45:00-05:00",
+            "manifest_sha256": manifest_sha,
+            "advisory_detail_sha256": "f" * 64,
+            "advisory_csv_sha256": "1" * 64,
+            "positions_sha256": "2" * 64,
+            "scored_signals_sha256": "3" * 64,
+            "pipeline_log_sha256": "4" * 64,
+            "timestamp_status": "opentimestamps_proof",
+        }
+    )
+    proof_input = repo / verifier._timestamp_proof_input_relpath(row)
+    proof_input.parent.mkdir(parents=True, exist_ok=True)
+    proof_input.write_text(verifier._timestamp_proof_input_payload(row), encoding="utf-8")
+    proof_path = proof_input.with_suffix(".ots")
+    proof_path.write_text("fake opentimestamps proof\n", encoding="utf-8")
+    row["opentimestamps_proof_path"] = proof_path.relative_to(repo).as_posix()
+
+    with (repo / verifier.DAILY_LEDGER).open("a", encoding="utf-8", newline="") as fh:
+        csv.DictWriter(fh, fieldnames=verifier.LEDGER_COLUMNS).writerow(row)
+
+    proof_row = {name: "" for name in verifier.TIMESTAMP_PROOF_COLUMNS}
+    proof_row.update(
+        {
+            "as_of_date": row["as_of_date"],
+            "delivery_date": row["delivery_date"],
+            "carrier": row["carrier"],
+            "manifest_sha256": manifest_sha,
+            "public_ledger_row_sha256": verifier._ledger_row_sha256(row),
+            "timestamp_status": "opentimestamps_proof",
+            "proof_input_path": proof_input.relative_to(repo).as_posix(),
+            "proof_input_sha256": verifier._sha256_file(proof_input),
+            "opentimestamps_proof_path": row["opentimestamps_proof_path"],
+            "opentimestamps_proof_sha256": verifier._sha256_file(proof_path),
+            "timestamped_at_utc": "2026-05-26T15:00:00+00:00",
+            "notes": "same-run",
+        }
+    )
+    with (repo / verifier.TIMESTAMP_PROOFS).open("a", encoding="utf-8", newline="") as fh:
+        csv.DictWriter(fh, fieldnames=verifier.TIMESTAMP_PROOF_COLUMNS).writerow(proof_row)
+
+
+def _write_fake_ots(path: Path, *, exit_code: int) -> Path:
+    path.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" != \"verify\" ]; then\n"
+        "  echo unexpected command >&2\n"
+        "  exit 64\n"
+        "fi\n"
+        f"exit {exit_code}\n",
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
 def _write_report_fixture(repo: Path, verifier) -> Path:
     row = {
         "as_of_date": "2026-05-26",
@@ -230,6 +301,24 @@ def main() -> int:
         errors = verifier.verify(repo)
         if not any("pending timestamp input payload mismatch" in error for error in errors):
             print("tampered pending timestamp input should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        tmp = Path(tmp_raw)
+        repo = _copy_public_fixture(tmp)
+        _append_opentimestamps_fixture(repo, verifier)
+        errors = verifier.verify(repo, verify_opentimestamps=True, ots_bin=str(_write_fake_ots(tmp / "ots", exit_code=0)))
+        if errors:
+            print("OpenTimestamps CLI verification fixture should verify, got:", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+        errors = verifier.verify(repo, verify_opentimestamps=True, ots_bin=str(_write_fake_ots(tmp / "bad-ots", exit_code=23)))
+        if not any("OpenTimestamps verification failed" in error for error in errors):
+            print("failing OpenTimestamps CLI should fail verification", file=sys.stderr)
             for error in errors:
                 print(f"- {error}", file=sys.stderr)
             return 1

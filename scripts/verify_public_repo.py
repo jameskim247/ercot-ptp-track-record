@@ -670,6 +670,26 @@ def _verify_pending_timestamp_input(root: Path, row: dict[str, str], *, line_num
     return []
 
 
+def _verify_opentimestamps_with_cli(root: Path, row: dict[str, str], *, line_number: int, ots_bin: str) -> list[str]:
+    proof_path = row.get("opentimestamps_proof_path", "")
+    if not proof_path:
+        return []
+    try:
+        result = subprocess.run(
+            [ots_bin, "verify", str(root / proof_path)],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return [f"OpenTimestamps verifier not found for line {line_number}: {ots_bin}"]
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "OpenTimestamps verification failed").strip()
+        return [f"OpenTimestamps verification failed at line {line_number}: {detail}"]
+    return []
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as fh:
@@ -874,6 +894,8 @@ def _verify_timestamp_proofs(
     *,
     ledger_rows: list[dict[str, str]],
     append_only_base_ref: str | None,
+    verify_opentimestamps: bool = False,
+    ots_bin: str = "ots",
 ) -> list[str]:
     path = root / TIMESTAMP_PROOFS
     errors: list[str] = []
@@ -942,6 +964,8 @@ def _verify_timestamp_proofs(
                 continue
             if row[digest_column] != _sha256_file(artifact):
                 errors.append(f"timestamp proof line {idx} {digest_column} does not match artifact")
+        if verify_opentimestamps and row["timestamp_status"] == "opentimestamps_proof":
+            errors.extend(_verify_opentimestamps_with_cli(root, row, line_number=idx, ots_bin=ots_bin))
     for idx, ledger_row in enumerate(ledger_rows, start=2):
         if ledger_row.get("timestamp_status") != "opentimestamps_proof":
             continue
@@ -1236,13 +1260,23 @@ def verify(
     *,
     append_only_base_ref: str | None = None,
     require_signed_audit_commits: bool = False,
+    verify_opentimestamps: bool = False,
+    ots_bin: str = "ots",
 ) -> list[str]:
     errors: list[str] = []
     ledger_rows, ledger_errors = _verify_daily_ledger(root, append_only_base_ref)
     errors.extend(ledger_errors)
     errors.extend(_verify_backfill_ledger(root, append_only_base_ref))
     errors.extend(_verify_outcome_summaries(root, ledger_rows=ledger_rows, append_only_base_ref=append_only_base_ref))
-    errors.extend(_verify_timestamp_proofs(root, ledger_rows=ledger_rows, append_only_base_ref=append_only_base_ref))
+    errors.extend(
+        _verify_timestamp_proofs(
+            root,
+            ledger_rows=ledger_rows,
+            append_only_base_ref=append_only_base_ref,
+            verify_opentimestamps=verify_opentimestamps,
+            ots_bin=ots_bin,
+        )
+    )
     errors.extend(_verify_attestations(root, ledger_rows))
     errors.extend(_verify_reports(root))
     errors.extend(_verify_samples(root, ledger_rows))
@@ -1271,11 +1305,19 @@ def main() -> int:
         action="store_true",
         help="Require commits touching generated public audit artifacts to have a git signature.",
     )
+    parser.add_argument(
+        "--verify-opentimestamps",
+        action="store_true",
+        help="Run `ots verify` for published OpenTimestamps proof artifacts.",
+    )
+    parser.add_argument("--ots-bin", default="ots", help="OpenTimestamps CLI binary to use with --verify-opentimestamps.")
     args = parser.parse_args()
     errors = verify(
         Path(args.root).resolve(),
         append_only_base_ref=args.append_only_base_ref,
         require_signed_audit_commits=args.require_signed_audit_commits,
+        verify_opentimestamps=args.verify_opentimestamps,
+        ots_bin=args.ots_bin,
     )
     if errors:
         for error in errors:
