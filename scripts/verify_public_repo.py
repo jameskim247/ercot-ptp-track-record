@@ -509,6 +509,10 @@ def _verify_reports(root: Path) -> list[str]:
                 errors.append(f"report missing rows_counted_sha256: {rel}")
             if "Methodology versions:" not in text:
                 errors.append(f"report missing methodology versions: {rel}")
+            if "## Operational Discipline" not in text:
+                errors.append(f"report missing operational discipline section: {rel}")
+            if "## Risk/Distribution" not in text:
+                errors.append(f"report missing risk/distribution section: {rel}")
             if not markdown_path.with_suffix(".csv").is_file():
                 errors.append(f"report missing companion csv: {markdown_path.with_suffix('.csv').relative_to(root).as_posix()}")
     return errors
