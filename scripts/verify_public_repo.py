@@ -77,6 +77,7 @@ CORRECTIONS_ROOT = Path("corrections")
 ATTESTATION_ROOT = Path("attestations/private_manifest")
 ATTESTATION_ALLOWED_SIGNERS = Path("attestations/allowed_signers")
 ATTESTATION_SIGNATURE_NAMESPACE = "ercot-ptp-track-record-manifest-v1"
+PUBLIC_SAMPLE_ROOT = Path("samples/delayed_advisory_examples")
 
 TIMESTAMP_PROOF_COLUMNS = (
     "as_of_date",
@@ -255,6 +256,11 @@ def _report_metadata(text: str) -> dict[str, date | str | None]:
         if raw:
             parsed[key] = date.fromisoformat(raw)
     return parsed
+
+
+def _sample_manifest_sha(text: str) -> str:
+    match = re.search(r"Manifest SHA256: `([0-9a-f]{64})`", text)
+    return match.group(1) if match else ""
 
 
 def _correction_note_relpath(row: dict[str, str]) -> Path:
@@ -748,6 +754,43 @@ def _verify_reports(root: Path, *, min_delay_days: int = 2) -> list[str]:
     return errors
 
 
+def _verify_samples(root: Path, ledger_rows: list[dict[str, str]]) -> list[str]:
+    errors: list[str] = []
+    sample_root = root / PUBLIC_SAMPLE_ROOT
+    if not sample_root.exists():
+        return errors
+    ledger_by_manifest = {row.get("manifest_sha256", ""): row for row in ledger_rows}
+    for markdown_path in sorted(sample_root.glob("*.md")):
+        if markdown_path.name == "README.md":
+            continue
+        rel = markdown_path.relative_to(root).as_posix()
+        text = markdown_path.read_text(encoding="utf-8")
+        if GENERATED_HEADER not in text:
+            errors.append(f"sample missing generated header: {rel}")
+        for marker in ("## Approval", "- Approval id:", "- Approved by:", "- Approval reason:", "## Hash References"):
+            if marker not in text:
+                errors.append(f"sample missing required marker {marker!r}: {rel}")
+        for pattern in FORBIDDEN_CONTENT_PATTERNS:
+            if pattern.search(text):
+                errors.append(f"sample contains forbidden raw-signal content pattern {pattern.pattern!r}: {rel}")
+                break
+        manifest_sha = _sample_manifest_sha(text)
+        if not manifest_sha:
+            errors.append(f"sample missing manifest SHA256: {rel}")
+            continue
+        ledger_row = ledger_by_manifest.get(manifest_sha)
+        if ledger_row is None:
+            errors.append(f"sample manifest does not reference public ledger row: {rel}")
+            continue
+        if ledger_row.get("carrier") != "w31":
+            errors.append(f"sample manifest references non-public carrier row: {rel}")
+        if ledger_row.get("prospective_or_backfill") != "prospective":
+            errors.append(f"sample manifest references non-prospective row: {rel}")
+        if ledger_row.get("valid_day_status") != "valid":
+            errors.append(f"sample manifest references non-valid-day row: {rel}")
+    return errors
+
+
 def _verify_status_docs(root: Path) -> list[str]:
     errors: list[str] = []
     for relpath in ("README.md", "carrier/current.md", "carrier/operational_log.md"):
@@ -798,6 +841,7 @@ def verify(
     errors.extend(_verify_timestamp_proofs(root, ledger_rows=ledger_rows, append_only_base_ref=append_only_base_ref))
     errors.extend(_verify_attestations(root, ledger_rows))
     errors.extend(_verify_reports(root))
+    errors.extend(_verify_samples(root, ledger_rows))
     errors.extend(_verify_status_docs(root))
     errors.extend(
         _verify_track_record_audit_commits(
