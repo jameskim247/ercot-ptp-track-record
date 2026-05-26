@@ -85,6 +85,41 @@ def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> N
         csv.DictWriter(fh, fieldnames=verifier.TIMESTAMP_PROOF_COLUMNS).writerow(proof_row)
 
 
+def _append_pending_timestamp_fixture(repo: Path, verifier) -> Path:
+    manifest_sha = "b" * 64
+    row = {name: "" for name in verifier.LEDGER_COLUMNS}
+    row.update(
+        {
+            "as_of_date": "2026-05-26",
+            "delivery_date": "2026-05-27",
+            "carrier": "w31",
+            "model_label": "weather-w31-selftest",
+            "git_commit": "deadbeef",
+            "config_hash": "c" * 64,
+            "carrier_metadata_sha256": "d" * 64,
+            "methodology_version": "m2026.05.26.v1",
+            "prospective_or_backfill": "prospective",
+            "pipeline_status": "SUCCESS",
+            "valid_day_status": "valid",
+            "publication_time_ct": "2026-05-26T09:45:00-05:00",
+            "manifest_sha256": manifest_sha,
+            "advisory_detail_sha256": "e" * 64,
+            "advisory_csv_sha256": "f" * 64,
+            "positions_sha256": "1" * 64,
+            "scored_signals_sha256": "2" * 64,
+            "pipeline_log_sha256": "3" * 64,
+            "timestamp_status": "timestamp_pending",
+        }
+    )
+    with (repo / verifier.DAILY_LEDGER).open("a", encoding="utf-8", newline="") as fh:
+        csv.DictWriter(fh, fieldnames=verifier.LEDGER_COLUMNS).writerow(row)
+
+    proof_input = repo / verifier._timestamp_proof_input_relpath(row)
+    proof_input.parent.mkdir(parents=True, exist_ok=True)
+    proof_input.write_text(verifier._timestamp_proof_input_payload(row), encoding="utf-8")
+    return proof_input
+
+
 def _write_report_fixture(repo: Path, verifier) -> Path:
     row = {
         "as_of_date": "2026-05-26",
@@ -177,6 +212,24 @@ def main() -> int:
         errors = verifier.verify(repo)
         if not any("markdown does not match deterministic regeneration" in error for error in errors):
             print("tampered report markdown should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
+        proof_input = _append_pending_timestamp_fixture(repo, verifier)
+        errors = verifier.verify(repo)
+        if errors:
+            print("pending timestamp input fixture should verify, got:", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+        proof_input.write_text("tampered\n", encoding="utf-8")
+        errors = verifier.verify(repo)
+        if not any("pending timestamp input payload mismatch" in error for error in errors):
+            print("tampered pending timestamp input should fail", file=sys.stderr)
             for error in errors:
                 print(f"- {error}", file=sys.stderr)
             return 1

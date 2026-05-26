@@ -160,6 +160,29 @@ def _ledger_row_sha256(row: dict[str, str]) -> str:
     return _sha256_json({name: row.get(name, "") for name in LEDGER_COLUMNS})
 
 
+def _timestamp_proof_input_relpath(row: dict[str, str]) -> str:
+    as_of = row.get("as_of_date", "")
+    carrier = row.get("carrier", "")
+    manifest_sha = row.get("manifest_sha256", "")
+    if not as_of or not carrier or not manifest_sha:
+        return ""
+    year, month, _day = as_of.split("-", 2)
+    return f"hashes/opentimestamps/{year}/{month}/{as_of}_{carrier}_{manifest_sha}"
+
+
+def _timestamp_proof_input_payload(row: dict[str, str]) -> str:
+    return "\n".join(
+        [
+            "ercot_ptp_track_record_timestamp_v0",
+            f"as_of_date={row.get('as_of_date', '')}",
+            f"delivery_date={row.get('delivery_date', '')}",
+            f"carrier={row.get('carrier', '')}",
+            f"manifest_sha256={row.get('manifest_sha256', '')}",
+            "",
+        ]
+    )
+
+
 def _git_check_output(repo: Path, args: list[str]) -> tuple[str, str]:
     result = subprocess.run(
         ["git", "--no-optional-locks", *args],
@@ -631,6 +654,22 @@ def _verify_correction_note(root: Path, row: dict[str, str], *, line_number: int
     return errors
 
 
+def _verify_pending_timestamp_input(root: Path, row: dict[str, str], *, line_number: int) -> list[str]:
+    relpath = _timestamp_proof_input_relpath(row)
+    if not relpath:
+        return []
+    path = root / relpath
+    if not path.exists():
+        return []
+    if not path.is_file():
+        return [f"pending timestamp input is not a file at line {line_number}: {relpath}"]
+    expected = _timestamp_proof_input_payload(row)
+    actual = path.read_text(encoding="utf-8")
+    if actual != expected:
+        return [f"pending timestamp input payload mismatch at line {line_number}: {relpath}"]
+    return []
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as fh:
@@ -738,6 +777,8 @@ def _verify_daily_ledger(root: Path, append_only_base_ref: str | None) -> tuple[
         proof_path = row["opentimestamps_proof_path"]
         if row["timestamp_status"] == "timestamp_pending" and proof_path:
             errors.append(f"daily ledger line {idx} pending timestamp row must not have proof path")
+        if row["timestamp_status"] == "timestamp_pending":
+            errors.extend(_verify_pending_timestamp_input(root, row, line_number=idx))
         if row["timestamp_status"] == "opentimestamps_proof":
             if not proof_path:
                 errors.append(f"daily ledger line {idx} missing opentimestamps_proof_path")
