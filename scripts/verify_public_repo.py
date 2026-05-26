@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -140,6 +141,43 @@ def _sha256_json(payload: object) -> str:
 
 def _ledger_row_sha256(row: dict[str, str]) -> str:
     return _sha256_json({name: row.get(name, "") for name in LEDGER_COLUMNS})
+
+
+def _report_rows_counted_sha256(rows: list[dict[str, str]]) -> str:
+    selected = [
+        {
+            "as_of_date": row.get("as_of_date", ""),
+            "delivery_date": row.get("delivery_date", ""),
+            "carrier": row.get("carrier", ""),
+            "manifest_sha256": row.get("manifest_sha256", ""),
+            "rows_counted_sha256": row.get("rows_counted_sha256", ""),
+            "private_outcome_sha256": row.get("private_outcome_sha256", ""),
+        }
+        for row in rows
+    ]
+    return _sha256_json(sorted(selected, key=lambda row: (row["delivery_date"], row["manifest_sha256"])))
+
+
+def _markdown_match(text: str, pattern: str) -> str:
+    match = re.search(pattern, text, flags=re.MULTILINE)
+    return match.group(1) if match else ""
+
+
+def _report_metadata(text: str) -> dict[str, date | str | None]:
+    start = _markdown_match(text, r"^Period:\s*(\d{4}-\d{2}-\d{2})\s+to\s+\d{4}-\d{2}-\d{2}\s*$")
+    end = _markdown_match(text, r"^Period:\s*\d{4}-\d{2}-\d{2}\s+to\s+(\d{4}-\d{2}-\d{2})\s*$")
+    report = _markdown_match(text, r"^Report date:\s*(\d{4}-\d{2}-\d{2})\s*$")
+    rows_hash = _markdown_match(text, r"^Rows counted SHA256:\s*`?([^`\s]+)`?\s*$")
+    parsed: dict[str, date | str | None] = {
+        "start_date": None,
+        "end_date": None,
+        "report_date": None,
+        "rows_counted_sha256": rows_hash,
+    }
+    for key, raw in (("start_date", start), ("end_date", end), ("report_date", report)):
+        if raw:
+            parsed[key] = date.fromisoformat(raw)
+    return parsed
 
 
 def _correction_note_relpath(row: dict[str, str]) -> Path:
@@ -534,7 +572,77 @@ def _verify_attestations(root: Path, ledger_rows: list[dict[str, str]]) -> list[
     return errors
 
 
-def _verify_reports(root: Path) -> list[str]:
+def _verify_report_rows(root: Path, markdown_path: Path, text: str, *, min_delay_days: int) -> list[str]:
+    errors: list[str] = []
+    rel = markdown_path.relative_to(root).as_posix()
+    csv_path = markdown_path.with_suffix(".csv")
+    report_rows, row_errors = _read_csv_rows(csv_path, OUTCOME_SUMMARY_COLUMNS)
+    if row_errors:
+        return row_errors
+    if not report_rows:
+        return [f"report companion csv has no rows: {csv_path.relative_to(root).as_posix()}"]
+    outcome_rows, outcome_errors = _read_csv_rows(root / OUTCOME_SUMMARIES, OUTCOME_SUMMARY_COLUMNS)
+    ledger_rows, ledger_errors = _read_csv_rows(root / DAILY_LEDGER, LEDGER_COLUMNS)
+    errors.extend(outcome_errors)
+    errors.extend(ledger_errors)
+    if outcome_errors or ledger_errors:
+        return errors
+
+    metadata = _report_metadata(text)
+    for name in ("start_date", "end_date", "report_date"):
+        if metadata[name] is None:
+            errors.append(f"report missing parseable {name}: {rel}")
+    rows_hash = str(metadata["rows_counted_sha256"] or "")
+    if rows_hash and _report_rows_counted_sha256(report_rows) != rows_hash:
+        errors.append(f"report rows_counted_sha256 mismatch: {rel}")
+
+    outcome_by_key = {
+        (row["as_of_date"], row["delivery_date"], row["carrier"], row["manifest_sha256"]): row
+        for row in outcome_rows
+    }
+    ledger_by_manifest = {row["manifest_sha256"]: row for row in ledger_rows if row.get("manifest_sha256")}
+    corrected_manifests = {row["correction_of_manifest_sha256"] for row in ledger_rows if row.get("correction_of_manifest_sha256")}
+    methodology_versions = {row.get("methodology_version", "") for row in report_rows if row.get("methodology_version")}
+    if len(methodology_versions) > 1 and "## Methodology Segments" not in text:
+        errors.append(f"report spanning multiple methodology versions lacks methodology segments: {rel}")
+
+    start_date = metadata["start_date"]
+    end_date = metadata["end_date"]
+    report_date = metadata["report_date"]
+    latest_allowed = report_date - timedelta(days=min_delay_days) if isinstance(report_date, date) else None
+    for idx, row in enumerate(report_rows, start=2):
+        row_key = (row["as_of_date"], row["delivery_date"], row["carrier"], row["manifest_sha256"])
+        outcome = outcome_by_key.get(row_key)
+        if outcome is None:
+            errors.append(f"report row {idx} does not reference a delayed outcome summary: {rel}")
+        elif {name: row.get(name, "") for name in OUTCOME_SUMMARY_COLUMNS} != {name: outcome.get(name, "") for name in OUTCOME_SUMMARY_COLUMNS}:
+            errors.append(f"report row {idx} differs from delayed outcome summary: {rel}")
+        ledger = ledger_by_manifest.get(row["manifest_sha256"])
+        if ledger is None:
+            errors.append(f"report row {idx} does not reference a public ledger manifest: {rel}")
+        else:
+            if row["manifest_sha256"] in corrected_manifests:
+                errors.append(f"report row {idx} uses superseded corrected manifest: {rel}")
+            if ledger["prospective_or_backfill"] != "prospective":
+                errors.append(f"report row {idx} references non-prospective ledger row: {rel}")
+            if ledger["valid_day_status"] != "valid":
+                errors.append(f"report row {idx} references non-valid ledger row: {rel}")
+            for column in ("as_of_date", "delivery_date", "carrier", "methodology_version"):
+                if ledger[column] != row[column]:
+                    errors.append(f"report row {idx} {column} does not match ledger row: {rel}")
+        if row["carrier"] != "w31":
+            errors.append(f"report row {idx} has non-public carrier: {rel}")
+        if row["outcome_status"] != "outcome_joined":
+            errors.append(f"report row {idx} is not settlement-complete: {rel}")
+        delivery = date.fromisoformat(row["delivery_date"])
+        if isinstance(start_date, date) and isinstance(end_date, date) and not (start_date <= delivery <= end_date):
+            errors.append(f"report row {idx} delivery date outside report period: {rel}")
+        if latest_allowed is not None and delivery > latest_allowed:
+            errors.append(f"report row {idx} is not delayed by {min_delay_days} days: {rel}")
+    return errors
+
+
+def _verify_reports(root: Path, *, min_delay_days: int = 2) -> list[str]:
     errors: list[str] = []
     for report_root in (root / "reports" / "weekly", root / "reports" / "monthly"):
         if not report_root.exists():
@@ -556,6 +664,8 @@ def _verify_reports(root: Path) -> list[str]:
                 errors.append(f"report missing risk/distribution section: {rel}")
             if not markdown_path.with_suffix(".csv").is_file():
                 errors.append(f"report missing companion csv: {markdown_path.with_suffix('.csv').relative_to(root).as_posix()}")
+            else:
+                errors.extend(_verify_report_rows(root, markdown_path, text, min_delay_days=min_delay_days))
     return errors
 
 
