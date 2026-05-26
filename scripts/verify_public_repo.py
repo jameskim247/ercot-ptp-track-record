@@ -209,13 +209,27 @@ def _verify_daily_ledger(root: Path, append_only_base_ref: str | None) -> tuple[
         )
 
     seen: set[tuple[str, str, str, str]] = set()
-    manifest_hashes: set[str] = set()
+    prior_by_manifest: dict[str, dict[str, str]] = {}
     for idx, row in enumerate(rows, start=2):
         key = (row["as_of_date"], row["delivery_date"], row["carrier"], row["prospective_or_backfill"])
-        if key in seen:
+        correction_of = row["correction_of_manifest_sha256"]
+        if correction_of:
+            corrected = prior_by_manifest.get(correction_of)
+            if corrected is None:
+                errors.append(f"daily ledger line {idx} correction_of_manifest_sha256 does not reference an earlier row")
+            else:
+                corrected_key = (
+                    corrected["as_of_date"],
+                    corrected["delivery_date"],
+                    corrected["carrier"],
+                    corrected["prospective_or_backfill"],
+                )
+                if corrected_key != key:
+                    errors.append(f"daily ledger line {idx} correction key does not match corrected row key")
+        elif key in seen:
             errors.append(f"duplicate daily ledger key at line {idx}: {key}")
-        seen.add(key)
-        manifest_hashes.add(row["manifest_sha256"])
+        else:
+            seen.add(key)
         if row["carrier"] != "w31":
             errors.append(f"daily ledger line {idx} must use carrier=w31, got {row['carrier']!r}")
         if row["prospective_or_backfill"] != "prospective":
@@ -240,9 +254,8 @@ def _verify_daily_ledger(root: Path, append_only_base_ref: str | None) -> tuple[
             errors.append(f"daily ledger line {idx} failed timestamp row must not have proof path")
         if proof_path and not (root / proof_path).is_file():
             errors.append(f"daily ledger line {idx} proof path does not exist: {proof_path}")
-        correction_of = row["correction_of_manifest_sha256"]
-        if correction_of and correction_of not in manifest_hashes:
-            errors.append(f"daily ledger line {idx} correction_of_manifest_sha256 does not reference an earlier row")
+        if row["manifest_sha256"]:
+            prior_by_manifest[row["manifest_sha256"]] = row
     return rows, errors
 
 
