@@ -532,18 +532,26 @@ def _verify_timestamp_proofs(
             errors.append(f"timestamp proof line {idx} does not match referenced ledger row")
         if row["public_ledger_row_sha256"] != _ledger_row_sha256(ledger_row):
             errors.append(f"timestamp proof line {idx} has wrong public_ledger_row_sha256")
-        if row["timestamp_status"] != "opentimestamps_proof":
+        if row["timestamp_status"] not in {"opentimestamps_proof", "timestamp_failed_giving_up"}:
             errors.append(f"timestamp proof line {idx} has unexpected timestamp_status={row['timestamp_status']!r}")
         proof_input_path = row["proof_input_path"]
         proof_path = row["opentimestamps_proof_path"]
         if not proof_input_path.startswith("hashes/opentimestamps/"):
             errors.append(f"timestamp proof line {idx} proof_input_path must be under hashes/opentimestamps/")
-        if not proof_path.startswith("hashes/opentimestamps/"):
-            errors.append(f"timestamp proof line {idx} opentimestamps_proof_path must be under hashes/opentimestamps/")
-        for column, digest_column in (
-            ("proof_input_path", "proof_input_sha256"),
-            ("opentimestamps_proof_path", "opentimestamps_proof_sha256"),
-        ):
+        if row["timestamp_status"] == "opentimestamps_proof":
+            if not proof_path.startswith("hashes/opentimestamps/"):
+                errors.append(f"timestamp proof line {idx} opentimestamps_proof_path must be under hashes/opentimestamps/")
+            required_artifacts = (
+                ("proof_input_path", "proof_input_sha256"),
+                ("opentimestamps_proof_path", "opentimestamps_proof_sha256"),
+            )
+        else:
+            if proof_path or row["opentimestamps_proof_sha256"]:
+                errors.append(f"failed timestamp line {idx} must not have OpenTimestamps proof fields")
+            if not row["notes"]:
+                errors.append(f"failed timestamp line {idx} requires notes")
+            required_artifacts = (("proof_input_path", "proof_input_sha256"),)
+        for column, digest_column in required_artifacts:
             relpath = row[column]
             artifact = root / relpath
             if not artifact.is_file():
