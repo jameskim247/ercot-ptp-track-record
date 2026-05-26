@@ -15,4 +15,18 @@ jobs:
         with:
           python-version: "3.12"
       - name: Verify public repo guardrails
-        run: python3 scripts/verify_public_repo.py .
+        shell: bash
+        run: |
+          BASE_REF=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}"
+            BASE_REF="origin/${{ github.base_ref }}"
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            BASE_REF="${{ github.event.before }}"
+          fi
+
+          if [ -n "$BASE_REF" ] && git cat-file -e "$BASE_REF^{commit}" 2>/dev/null; then
+            python3 scripts/verify_public_repo.py . --append-only-base-ref "$BASE_REF"
+          else
+            python3 scripts/verify_public_repo.py .
+          fi
