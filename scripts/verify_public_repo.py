@@ -72,6 +72,7 @@ DAILY_LEDGER = Path("hashes/daily_manifest_hashes.csv")
 BACKFILL_LEDGER = Path("hashes/backfill_manifest_hashes.csv")
 TIMESTAMP_PROOFS = Path("hashes/timestamp_proofs.csv")
 OUTCOME_SUMMARIES = Path("reports/audits/daily_outcome_summaries.csv")
+CORRECTIONS_ROOT = Path("corrections")
 ATTESTATION_ROOT = Path("attestations/private_manifest")
 ATTESTATION_ALLOWED_SIGNERS = Path("attestations/allowed_signers")
 ATTESTATION_SIGNATURE_NAMESPACE = "ercot-ptp-track-record-manifest-v1"
@@ -139,6 +140,32 @@ def _sha256_json(payload: object) -> str:
 
 def _ledger_row_sha256(row: dict[str, str]) -> str:
     return _sha256_json({name: row.get(name, "") for name in LEDGER_COLUMNS})
+
+
+def _correction_note_relpath(row: dict[str, str]) -> Path:
+    manifest_sha = row.get("manifest_sha256") or "missing-manifest"
+    return CORRECTIONS_ROOT / f"{row.get('as_of_date', 'unknown-date')}_{row.get('carrier', 'w31')}_{manifest_sha[:12]}.md"
+
+
+def _verify_correction_note(root: Path, row: dict[str, str], *, line_number: int) -> list[str]:
+    relpath = _correction_note_relpath(row)
+    path = root / relpath
+    if not path.is_file():
+        return [f"daily ledger line {line_number} correction row missing public correction note: {relpath.as_posix()}"]
+    text = path.read_text(encoding="utf-8")
+    errors: list[str] = []
+    if GENERATED_HEADER not in text:
+        errors.append(f"correction note missing generated header: {relpath.as_posix()}")
+    for label, value in (
+        ("original manifest", row.get("correction_of_manifest_sha256", "")),
+        ("correction manifest", row.get("manifest_sha256", "")),
+    ):
+        if value and value not in text:
+            errors.append(f"correction note missing {label} sha: {relpath.as_posix()}")
+    for required in ("## Cause", "## Blast Radius", "## Corrected Fields", "## Verification", "Responsible human approval:"):
+        if required not in text:
+            errors.append(f"correction note missing required section {required!r}: {relpath.as_posix()}")
+    return errors
 
 
 def _sha256_file(path: Path) -> str:
@@ -226,6 +253,7 @@ def _verify_daily_ledger(root: Path, append_only_base_ref: str | None) -> tuple[
                 )
                 if corrected_key != key:
                     errors.append(f"daily ledger line {idx} correction key does not match corrected row key")
+            errors.extend(_verify_correction_note(root, row, line_number=idx))
         elif key in seen:
             errors.append(f"duplicate daily ledger key at line {idx}: {key}")
         else:
