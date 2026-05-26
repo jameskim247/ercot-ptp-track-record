@@ -29,7 +29,7 @@ Backfill rows belong only in `hashes/backfill_manifest_hashes.csv`. Buyer-facing
 
 Use git history to inspect row additions. Existing ledger rows should not be edited or deleted. Corrections must append a new row and a note under `corrections/`.
 
-The verifier enforces this mechanically for the manifest ledgers and delayed outcome summary when `--append-only-base-ref` is supplied. Timestamp proof completion may update only `timestamp_status` and `opentimestamps_proof_path` from a pending row.
+The verifier enforces this mechanically for the manifest ledgers and delayed outcome summary when `--append-only-base-ref` is supplied. Rows first published as `timestamp_pending` must remain unchanged; later proof completion is recorded only by appending to `hashes/timestamp_proofs.csv`.
 
 ## Verify Timestamp Proofs
 

@@ -29,6 +29,7 @@ This repository does not publish live trade instructions, raw scored signals, mo
 - `carrier/current.md`: current public carrier status.
 - `carrier/operational_log.md`: public-safe automation event log.
 - `reports/weekly/` and `reports/monthly/`: delayed aggregate reports once enough settled outcomes exist.
+- `samples/delayed_advisory_examples/`: approved long-delayed examples with aggregate counts and hashes only.
 - `methodology/`: public rules, versioning, risk metrics, exclusions, and disclaimers.
 
 ## Verification
