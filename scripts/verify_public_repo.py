@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
+import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -68,6 +71,9 @@ OUTCOME_SUMMARY_COLUMNS = (
 DAILY_LEDGER = Path("hashes/daily_manifest_hashes.csv")
 BACKFILL_LEDGER = Path("hashes/backfill_manifest_hashes.csv")
 OUTCOME_SUMMARIES = Path("reports/audits/daily_outcome_summaries.csv")
+ATTESTATION_ROOT = Path("attestations/private_manifest")
+ATTESTATION_ALLOWED_SIGNERS = Path("attestations/allowed_signers")
+ATTESTATION_SIGNATURE_NAMESPACE = "ercot-ptp-track-record-manifest-v1"
 
 FORBIDDEN_PATH_PATTERNS = (
     re.compile(r"(^|/)scored_signals_\d{4}-\d{2}-\d{2}\.(csv|json|parquet)$", re.IGNORECASE),
@@ -107,6 +113,15 @@ def _read_csv_rows(path: Path, columns: tuple[str, ...]) -> tuple[list[dict[str,
         if tuple(reader.fieldnames or ()) != columns:
             return [], [f"schema mismatch in {path}: {reader.fieldnames}"]
         return list(reader), []
+
+
+def _sha256_json(payload: object) -> str:
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _ledger_row_sha256(row: dict[str, str]) -> str:
+    return _sha256_json({name: row.get(name, "") for name in LEDGER_COLUMNS})
 
 
 def _read_base_csv_rows(
@@ -296,6 +311,101 @@ def _verify_outcome_summaries(
     return errors
 
 
+def _canonical_attestation_body(payload: dict[str, object]) -> bytes:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+
+
+def _allowed_signer_identity_present(path: Path, identity: str) -> bool:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return False
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        principals = line.split(None, 1)[0]
+        if identity in {principal.strip() for principal in principals.split(",")}:
+            return True
+    return False
+
+
+def _verify_ssh_attestation_signature(payload: dict[str, object], *, allowed_signers_path: Path) -> str | None:
+    signature = payload.get("signature")
+    public_key = str(payload.get("public_key") or "")
+    identity = str(payload.get("signature_identity") or "")
+    namespace = str(payload.get("signature_namespace") or "")
+    if not signature or not public_key or not identity or not namespace:
+        return "missing signature, public_key, signature_identity, or signature_namespace"
+    if not allowed_signers_path.is_file():
+        return f"allowed signers file missing: {ATTESTATION_ALLOWED_SIGNERS.as_posix()}"
+    if not _allowed_signer_identity_present(allowed_signers_path, identity):
+        return f"signature_identity {identity!r} is not listed in {ATTESTATION_ALLOWED_SIGNERS.as_posix()}"
+    signed_payload = dict(payload)
+    signed_payload.pop("signature", None)
+    body = _canonical_attestation_body(signed_payload)
+    with tempfile.TemporaryDirectory(prefix="track-record-attestation-verify-") as tmp_raw:
+        root = Path(tmp_raw)
+        signature_path = root / "attestation.sig"
+        signature_path.write_text(str(signature), encoding="utf-8")
+        result = subprocess.run(
+            [
+                "ssh-keygen",
+                "-Y",
+                "verify",
+                "-f",
+                str(allowed_signers_path),
+                "-I",
+                identity,
+                "-n",
+                namespace,
+                "-s",
+                str(signature_path),
+            ],
+            input=body,
+            capture_output=True,
+            check=False,
+        )
+    if result.returncode != 0:
+        return (result.stderr or result.stdout).decode("utf-8", errors="replace").strip() or "signature verification failed"
+    return None
+
+
+def _verify_attestations(root: Path, ledger_rows: list[dict[str, str]]) -> list[str]:
+    errors: list[str] = []
+    attestation_root = root / ATTESTATION_ROOT
+    if not attestation_root.exists():
+        return errors
+    allowed_signers_path = root / ATTESTATION_ALLOWED_SIGNERS
+    ledger_by_manifest = {row["manifest_sha256"]: row for row in ledger_rows if row.get("manifest_sha256")}
+    for path in sorted(attestation_root.rglob("*.json")):
+        rel = path.relative_to(root).as_posix()
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            errors.append(f"invalid attestation json in {rel}: {exc}")
+            continue
+        if not isinstance(payload, dict):
+            errors.append(f"attestation is not an object: {rel}")
+            continue
+        if payload.get("signature_algorithm") != "openssh-signature-v1":
+            errors.append(f"attestation has unsupported signature_algorithm in {rel}")
+        if payload.get("signature_namespace") != ATTESTATION_SIGNATURE_NAMESPACE:
+            errors.append(f"attestation has unexpected signature_namespace in {rel}")
+        manifest_sha256 = str(payload.get("manifest_sha256") or "")
+        ledger_row = ledger_by_manifest.get(manifest_sha256)
+        if ledger_row is None:
+            errors.append(f"attestation does not reference a public ledger manifest: {rel}")
+        else:
+            expected_row_sha = _ledger_row_sha256(ledger_row)
+            if payload.get("public_ledger_row_sha256") != expected_row_sha:
+                errors.append(f"attestation ledger row hash mismatch in {rel}")
+        signature_error = _verify_ssh_attestation_signature(payload, allowed_signers_path=allowed_signers_path)
+        if signature_error:
+            errors.append(f"attestation signature verification failed in {rel}: {signature_error}")
+    return errors
+
+
 def _verify_reports(root: Path) -> list[str]:
     errors: list[str] = []
     for report_root in (root / "reports" / "weekly", root / "reports" / "monthly"):
@@ -347,6 +457,7 @@ def verify(root: Path, *, append_only_base_ref: str | None = None) -> list[str]:
     errors.extend(ledger_errors)
     errors.extend(_verify_backfill_ledger(root, append_only_base_ref))
     errors.extend(_verify_outcome_summaries(root, ledger_rows=ledger_rows, append_only_base_ref=append_only_base_ref))
+    errors.extend(_verify_attestations(root, ledger_rows))
     errors.extend(_verify_reports(root))
     errors.extend(_verify_privacy_boundary(root))
     return errors
