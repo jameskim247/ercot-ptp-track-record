@@ -5,6 +5,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import re
 import subprocess
 import sys
@@ -110,8 +111,12 @@ FORBIDDEN_CONTENT_PATTERNS = (
     re.compile(r"(^|[,{])\s*source\s*[:=]", re.IGNORECASE),
     re.compile(r"(^|[,{])\s*sink\s*[:=]", re.IGNORECASE),
     re.compile(r"(^|[,{])\s*mw\s*[:=]", re.IGNORECASE),
+    re.compile(r'["\']source["\']\s*:', re.IGNORECASE),
+    re.compile(r'["\']sink["\']\s*:', re.IGNORECASE),
+    re.compile(r'["\']mw["\']\s*:', re.IGNORECASE),
     re.compile(r"\bpair_id\s*,\s*hour_ending\b", re.IGNORECASE),
     re.compile(r"\bsource\s*,\s*sink\b", re.IGNORECASE),
+    re.compile(r"\|\s*source\s*\|\s*sink\s*\|", re.IGNORECASE),
     re.compile(r"\bsettlement_point\b", re.IGNORECASE),
 )
 
@@ -234,6 +239,343 @@ def _report_rows_counted_sha256(rows: list[dict[str, str]]) -> str:
         for row in rows
     ]
     return _sha256_json(sorted(selected, key=lambda row: (row["delivery_date"], row["manifest_sha256"])))
+
+
+def _to_float(row: dict[str, str], column: str) -> float:
+    try:
+        return float(row.get(column, "") or 0.0)
+    except ValueError:
+        return 0.0
+
+
+def _finite_metric(value: float | int | None) -> float | str:
+    if value is None:
+        return ""
+    value = float(value)
+    if not math.isfinite(value):
+        return ""
+    return round(value, 6)
+
+
+def _sample_std(values: list[float]) -> float:
+    if len(values) <= 1:
+        return math.nan
+    mean = sum(values) / len(values)
+    variance = sum((value - mean) ** 2 for value in values) / (len(values) - 1)
+    return math.sqrt(variance)
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[midpoint]
+    return (ordered[midpoint - 1] + ordered[midpoint]) / 2
+
+
+def _methodology_versions(rows: list[dict[str, str]]) -> list[str]:
+    return sorted({row.get("methodology_version", "") for row in rows if row.get("methodology_version", "")})
+
+
+def _methodology_segments(rows: list[dict[str, str]]) -> list[dict[str, object]]:
+    segments: list[dict[str, object]] = []
+    for version in _methodology_versions(rows):
+        group = [row for row in rows if row.get("methodology_version", "") == version]
+        if not group:
+            continue
+        delivery_dates = [row["delivery_date"] for row in group]
+        segments.append(
+            {
+                "methodology_version": version,
+                "days_counted": len(group),
+                "position_count": int(sum(_to_float(row, "position_count") for row in group)),
+                "filled_position_count": int(sum(_to_float(row, "filled_position_count") for row in group)),
+                "realized_filled_pnl": round(sum(_to_float(row, "realized_filled_pnl") for row in group), 6),
+                "expected_filled_ev": round(sum(_to_float(row, "expected_filled_ev") for row in group), 6),
+                "start_delivery_date": min(delivery_dates),
+                "end_delivery_date": max(delivery_dates),
+            }
+        )
+    return segments
+
+
+def _period_ledger_summary(
+    root: Path,
+    *,
+    start_date: date,
+    end_date: date,
+    report_date: date,
+    min_delay_days: int,
+) -> dict[str, object]:
+    rows, errors = _read_csv_rows(root / DAILY_LEDGER, LEDGER_COLUMNS)
+    if errors:
+        rows = []
+    latest_allowed = report_date - timedelta(days=min_delay_days)
+    period = [
+        row
+        for row in rows
+        if row.get("carrier") == "w31"
+        and row.get("prospective_or_backfill") == "prospective"
+        and start_date <= date.fromisoformat(row["delivery_date"]) <= end_date
+        and date.fromisoformat(row["delivery_date"]) <= latest_allowed
+    ]
+    if not period:
+        return {
+            "public_ledger_rows": 0,
+            "valid_day_count": 0,
+            "invalid_day_count": 0,
+            "excluded_day_count": 0,
+            "valid_day_rate": "",
+            "unsettled_or_missing_valid_outcomes": 0,
+        }
+    valid = sum(1 for row in period if row.get("valid_day_status") == "valid")
+    invalid = sum(1 for row in period if row.get("valid_day_status") == "invalid")
+    excluded = sum(1 for row in period if row.get("valid_day_status") == "excluded")
+    return {
+        "public_ledger_rows": len(period),
+        "valid_day_count": valid,
+        "invalid_day_count": invalid,
+        "excluded_day_count": excluded,
+        "valid_day_rate": _finite_metric(valid / len(period) if period else None),
+        "unsettled_or_missing_valid_outcomes": 0,
+    }
+
+
+def _track_record_valid_day_count(root: Path, *, report_date: date, min_delay_days: int) -> int:
+    ledger_rows, ledger_errors = _read_csv_rows(root / DAILY_LEDGER, LEDGER_COLUMNS)
+    outcome_rows, outcome_errors = _read_csv_rows(root / OUTCOME_SUMMARIES, OUTCOME_SUMMARY_COLUMNS)
+    if ledger_errors or outcome_errors:
+        return 0
+    corrected = {row["correction_of_manifest_sha256"] for row in ledger_rows if row.get("correction_of_manifest_sha256")}
+    ledger_by_key = {
+        (row["as_of_date"], row["delivery_date"], row["carrier"], row["manifest_sha256"], row["methodology_version"]): row
+        for row in ledger_rows
+        if row.get("manifest_sha256") not in corrected
+    }
+    latest_allowed = report_date - timedelta(days=min_delay_days)
+    keys: set[tuple[str, str, str]] = set()
+    for row in outcome_rows:
+        key = (row["as_of_date"], row["delivery_date"], row["carrier"], row["manifest_sha256"], row["methodology_version"])
+        ledger = ledger_by_key.get(key)
+        if ledger is None:
+            continue
+        if ledger.get("carrier") != "w31" or ledger.get("prospective_or_backfill") != "prospective":
+            continue
+        if ledger.get("valid_day_status") != "valid" or row.get("outcome_status") != "outcome_joined":
+            continue
+        if date.fromisoformat(row["delivery_date"]) <= latest_allowed:
+            keys.add((row["as_of_date"], row["delivery_date"], row["manifest_sha256"]))
+    return len(keys)
+
+
+def _daily_distribution(rows: list[dict[str, str]]) -> dict[str, object]:
+    daily: dict[str, float] = {}
+    for row in rows:
+        daily[row["delivery_date"]] = daily.get(row["delivery_date"], 0.0) + _to_float(row, "realized_filled_pnl")
+    if not daily:
+        return {
+            "mean_daily_realized_filled_pnl": "",
+            "median_daily_realized_filled_pnl": "",
+            "daily_realized_filled_pnl_std": "",
+            "best_day": "",
+            "best_day_pnl": "",
+            "worst_day": "",
+            "worst_day_pnl": "",
+            "max_drawdown": "",
+            "annualized_sharpe": "",
+            "annualized_sortino": "",
+        }
+    ordered = sorted(daily.items())
+    values = [value for _day, value in ordered]
+    cumulative = 0.0
+    peak = -math.inf
+    drawdowns: list[float] = []
+    for value in values:
+        cumulative += value
+        peak = max(peak, cumulative)
+        drawdowns.append(cumulative - peak)
+    mean = sum(values) / len(values)
+    std = _sample_std(values)
+    downside = [value for value in values if value < 0]
+    downside_std = _sample_std(downside) if len(downside) > 1 else math.nan
+    sharpe = (mean / std) * math.sqrt(252) if len(values) > 1 and std and math.isfinite(std) else math.nan
+    sortino = (
+        (mean / downside_std) * math.sqrt(252)
+        if len(downside) > 1 and downside_std and math.isfinite(downside_std)
+        else math.nan
+    )
+    best_day, best_pnl = max(ordered, key=lambda item: item[1])
+    worst_day, worst_pnl = min(ordered, key=lambda item: item[1])
+    return {
+        "mean_daily_realized_filled_pnl": _finite_metric(mean),
+        "median_daily_realized_filled_pnl": _finite_metric(_median(values)),
+        "daily_realized_filled_pnl_std": _finite_metric(std),
+        "best_day": best_day,
+        "best_day_pnl": _finite_metric(best_pnl),
+        "worst_day": worst_day,
+        "worst_day_pnl": _finite_metric(worst_pnl),
+        "max_drawdown": _finite_metric(min(drawdowns)),
+        "annualized_sharpe": _finite_metric(sharpe),
+        "annualized_sortino": _finite_metric(sortino),
+    }
+
+
+def _report_summary(
+    root: Path,
+    *,
+    kind: str,
+    rows: list[dict[str, str]],
+    start_date: date,
+    end_date: date,
+    report_date: date,
+    min_delay_days: int,
+) -> dict[str, object]:
+    ledger_summary = _period_ledger_summary(
+        root,
+        start_date=start_date,
+        end_date=end_date,
+        report_date=report_date,
+        min_delay_days=min_delay_days,
+    )
+    ledger_summary["unsettled_or_missing_valid_outcomes"] = max(int(ledger_summary["valid_day_count"]) - len(rows), 0)
+    position_count = sum(_to_float(row, "position_count") for row in rows)
+    filled_position_count = sum(_to_float(row, "filled_position_count") for row in rows)
+    hit_values = [_to_float(row, "hit_rate") for row in rows if row.get("hit_rate", "") != ""]
+    summary: dict[str, object] = {
+        "kind": kind,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "report_date": report_date.isoformat(),
+        "rows_counted_sha256": _report_rows_counted_sha256(rows),
+        "methodology_versions": _methodology_versions(rows),
+        "methodology_segments": _methodology_segments(rows),
+        "days_counted": len(rows),
+        "track_record_valid_day_count": _track_record_valid_day_count(
+            root,
+            report_date=report_date,
+            min_delay_days=min_delay_days,
+        ),
+        **ledger_summary,
+        "total_positions": int(position_count),
+        "total_mw": round(sum(_to_float(row, "total_mw") for row in rows), 6),
+        "filled_positions": int(filled_position_count),
+        "filled_mw": round(sum(_to_float(row, "filled_mw") for row in rows), 6),
+        "fill_rate": round(filled_position_count / max(position_count, 1.0), 6),
+        "hit_rate": round(sum(hit_values) / len(hit_values), 6) if hit_values else "",
+        "realized_filled_pnl": round(sum(_to_float(row, "realized_filled_pnl") for row in rows), 6),
+        "realized_pnl_if_filled": round(sum(_to_float(row, "realized_pnl_if_filled") for row in rows), 6),
+        "worst_path_hour_pnl": round(min(_to_float(row, "worst_path_hour_pnl") for row in rows), 6),
+        "expected_ev": round(sum(_to_float(row, "expected_ev") for row in rows), 6),
+        "expected_filled_ev": round(sum(_to_float(row, "expected_filled_ev") for row in rows), 6),
+        "manifest_count": len({row["manifest_sha256"] for row in rows}),
+    }
+    summary.update(_daily_distribution(rows))
+    return summary
+
+
+def _render_report_markdown(summary: dict[str, object], rows: list[dict[str, str]]) -> str:
+    methodology_versions = ", ".join(f"`{version}`" for version in summary["methodology_versions"])
+    lines = [
+        GENERATED_HEADER,
+        "",
+        f"# ERCOT PTP {str(summary['kind']).title()} Track Record",
+        "",
+        f"Period: {summary['start_date']} to {summary['end_date']}",
+        f"Report date: {summary['report_date']}",
+        f"Methodology versions: {methodology_versions}",
+        f"Rows counted SHA256: `{summary['rows_counted_sha256']}`",
+        "",
+        "## Summary",
+        "",
+        f"- Settlement-complete valid days counted: {summary['days_counted']}",
+        f"- Realized filled PnL: {summary['realized_filled_pnl']}",
+        f"- Fill rate: {summary['fill_rate']}",
+        f"- Hit rate: {summary['hit_rate']}",
+        f"- Worst path-hour PnL: {summary['worst_path_hour_pnl']}",
+        f"- Expected filled EV: {summary['expected_filled_ev']}",
+        "",
+        "## Operational Discipline",
+        "",
+        f"- Public ledger rows in period: {summary['public_ledger_rows']}",
+        f"- Valid days in ledger: {summary['valid_day_count']}",
+        f"- Settlement-complete valid days in full track record: {summary['track_record_valid_day_count']}",
+        f"- Invalid days in ledger: {summary['invalid_day_count']}",
+        f"- Excluded days in ledger: {summary['excluded_day_count']}",
+        f"- Valid-day rate: {summary['valid_day_rate']}",
+        f"- Valid days without settled outcome in this report: {summary['unsettled_or_missing_valid_outcomes']}",
+        "",
+        "## Risk/Distribution",
+        "",
+        f"- Cumulative realized filled PnL: {summary['realized_filled_pnl']}",
+        f"- Mean daily realized filled PnL: {summary['mean_daily_realized_filled_pnl']}",
+        f"- Median daily realized filled PnL: {summary['median_daily_realized_filled_pnl']}",
+        f"- Daily realized filled PnL std: {summary['daily_realized_filled_pnl_std']}",
+        f"- Best day: {summary['best_day']} ({summary['best_day_pnl']})",
+        f"- Worst day: {summary['worst_day']} ({summary['worst_day_pnl']})",
+        f"- Max drawdown: {summary['max_drawdown']}",
+        f"- Annualized Sharpe: {summary['annualized_sharpe']}",
+        f"- Annualized Sortino: {summary['annualized_sortino']}",
+        "",
+    ]
+    segments = summary["methodology_segments"]
+    if isinstance(segments, list) and len(segments) > 1:
+        lines.extend(
+            [
+                "## Methodology Segments",
+                "",
+                "| methodology_version | delivery_start | delivery_end | days | positions | filled_positions | realized_filled_pnl | expected_filled_ev |",
+                "|---|---|---|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for segment in segments:
+            lines.append(
+                f"| `{segment['methodology_version']}` | {segment['start_delivery_date']} | {segment['end_delivery_date']} | "
+                f"{segment['days_counted']} | {segment['position_count']} | {segment['filled_position_count']} | "
+                f"{segment['realized_filled_pnl']} | {segment['expected_filled_ev']} |"
+            )
+        lines.append("")
+    lines.extend(
+        [
+            "## Hash References",
+            "",
+            "| delivery_date | as_of_date | manifest_sha256 | rows_counted_sha256 |",
+            "|---|---|---|---|",
+        ]
+    )
+    for row in sorted(rows, key=lambda item: (item["delivery_date"], item["as_of_date"])):
+        lines.append(f"| {row['delivery_date']} | {row['as_of_date']} | `{row['manifest_sha256']}` | `{row['rows_counted_sha256']}` |")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _verify_report_markdown_regenerates(
+    *,
+    root: Path,
+    markdown_path: Path,
+    text: str,
+    report_rows: list[dict[str, str]],
+    start_date: date,
+    end_date: date,
+    report_date: date,
+    min_delay_days: int,
+) -> list[str]:
+    rel = markdown_path.relative_to(root).as_posix()
+    kind = markdown_path.parent.name
+    if kind not in {"weekly", "monthly"}:
+        return [f"report has unsupported report kind path: {rel}"]
+    expected = _render_report_markdown(
+        _report_summary(
+            root,
+            kind=kind,
+            rows=report_rows,
+            start_date=start_date,
+            end_date=end_date,
+            report_date=report_date,
+            min_delay_days=min_delay_days,
+        ),
+        report_rows,
+    )
+    return [] if text == expected else [f"report markdown does not match deterministic regeneration: {rel}"]
 
 
 def _markdown_match(text: str, pattern: str) -> str:
@@ -732,6 +1074,19 @@ def _verify_report_rows(root: Path, markdown_path: Path, text: str, *, min_delay
             errors.append(f"report row {idx} delivery date outside report period: {rel}")
         if latest_allowed is not None and delivery > latest_allowed:
             errors.append(f"report row {idx} is not delayed by {min_delay_days} days: {rel}")
+    if isinstance(start_date, date) and isinstance(end_date, date) and isinstance(report_date, date):
+        errors.extend(
+            _verify_report_markdown_regenerates(
+                root=root,
+                markdown_path=markdown_path,
+                text=text,
+                report_rows=report_rows,
+                start_date=start_date,
+                end_date=end_date,
+                report_date=report_date,
+                min_delay_days=min_delay_days,
+            )
+        )
     return errors
 
 

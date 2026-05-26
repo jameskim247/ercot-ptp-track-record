@@ -85,11 +85,72 @@ def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> N
         csv.DictWriter(fh, fieldnames=verifier.TIMESTAMP_PROOF_COLUMNS).writerow(proof_row)
 
 
+def _write_report_fixture(repo: Path, verifier) -> Path:
+    row = {
+        "as_of_date": "2026-05-26",
+        "delivery_date": "2026-05-27",
+        "carrier": "w31",
+        "manifest_sha256": "a" * 64,
+        "methodology_version": "m2026.05.26.v1",
+        "outcome_status": "outcome_joined",
+        "rows_counted_sha256": "3" * 64,
+        "position_count": "10",
+        "priced_position_count": "10",
+        "missing_price_position_count": "0",
+        "total_mw": "100",
+        "filled_position_count": "5",
+        "filled_mw": "50",
+        "fill_rate": "0.5",
+        "hit_rate": "0.6",
+        "realized_filled_pnl": "100",
+        "realized_pnl_if_filled": "200",
+        "worst_path_hour_pnl": "-10",
+        "expected_ev": "75",
+        "expected_filled_ev": "35",
+        "ercot_data_source": "ercot-public-lmp-lake",
+        "ercot_data_product": "lmp_hourly_da_rt",
+        "ercot_data_snapshot_sha256": "4" * 64,
+        "ercot_data_fetch_time_utc": "2026-05-30T12:00:00+00:00",
+        "ercot_data_watermark": "2026-05-27",
+        "private_outcome_sha256": "5" * 64,
+    }
+    outcome_path = repo / verifier.OUTCOME_SUMMARIES
+    outcome_path.parent.mkdir(parents=True, exist_ok=True)
+    with outcome_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=verifier.OUTCOME_SUMMARY_COLUMNS)
+        writer.writeheader()
+        writer.writerow(row)
+
+    report_dir = repo / "reports" / "weekly"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = report_dir / "2026-05-27_to_2026-05-27.csv"
+    with csv_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=verifier.OUTCOME_SUMMARY_COLUMNS)
+        writer.writeheader()
+        writer.writerow(row)
+
+    start = verifier.date.fromisoformat("2026-05-27")
+    report_date = verifier.date.fromisoformat("2026-05-30")
+    markdown_path = report_dir / "2026-05-27_to_2026-05-27.md"
+    summary = verifier._report_summary(
+        repo,
+        kind="weekly",
+        rows=[row],
+        start_date=start,
+        end_date=start,
+        report_date=report_date,
+        min_delay_days=2,
+    )
+    markdown_path.write_text(verifier._render_report_markdown(summary, [row]), encoding="utf-8")
+    return markdown_path
+
+
 def main() -> int:
     verifier = _load_verifier()
     with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
         repo = _copy_public_fixture(Path(tmp_raw))
         _append_terminal_timestamp_fixture(repo, verifier, notes="ots retry gave up after configured retry window")
+        _write_report_fixture(repo, verifier)
         errors = verifier.verify(repo)
         if errors:
             print("terminal timestamp fixture should verify, got:", file=sys.stderr)
@@ -103,6 +164,19 @@ def main() -> int:
         errors = verifier.verify(repo)
         if not any("failed timestamp line" in error and "requires notes" in error for error in errors):
             print("terminal timestamp fixture without notes should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
+        _append_terminal_timestamp_fixture(repo, verifier, notes="ots retry gave up after configured retry window")
+        markdown_path = _write_report_fixture(repo, verifier)
+        text = markdown_path.read_text(encoding="utf-8")
+        markdown_path.write_text(text.replace("- Realized filled PnL: 100.0", "- Realized filled PnL: 999999.0"), encoding="utf-8")
+        errors = verifier.verify(repo)
+        if not any("markdown does not match deterministic regeneration" in error for error in errors):
+            print("tampered report markdown should fail", file=sys.stderr)
             for error in errors:
                 print(f"- {error}", file=sys.stderr)
             return 1
