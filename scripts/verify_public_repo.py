@@ -179,7 +179,17 @@ def _audit_artifact_commit_touched(paths: list[str]) -> bool:
     return False
 
 
-def _verify_track_record_commit_messages(root: Path, *, base_ref: str | None) -> list[str]:
+def _commit_signature_status(root: Path, commit_sha: str) -> str:
+    stdout, _stderr = _git_check_output(root, ["log", "-1", "--format=%G?", commit_sha])
+    return stdout.strip() or "N"
+
+
+def _verify_track_record_audit_commits(
+    root: Path,
+    *,
+    base_ref: str | None,
+    require_signed: bool,
+) -> list[str]:
     if not _is_git_repo(root):
         return []
     rev = "HEAD" if not base_ref else f"{base_ref}..HEAD"
@@ -199,10 +209,14 @@ def _verify_track_record_commit_messages(root: Path, *, base_ref: str | None) ->
             errors.append(f"could not inspect changed files for commit {commit_sha[:12]}: {files_stderr}")
             continue
         changed_paths = [path for path in files_stdout.splitlines() if path]
-        if _audit_artifact_commit_touched(changed_paths) and not subject.startswith(TRACK_RECORD_COMMIT_PREFIX):
-            errors.append(
-                f"audit artifact commit {commit_sha[:12]} must use '{TRACK_RECORD_COMMIT_PREFIX}' prefix: {subject!r}"
-            )
+        if not _audit_artifact_commit_touched(changed_paths):
+            continue
+        if not subject.startswith(TRACK_RECORD_COMMIT_PREFIX):
+            errors.append(f"audit artifact commit {commit_sha[:12]} must use '{TRACK_RECORD_COMMIT_PREFIX}' prefix: {subject!r}")
+        if require_signed:
+            signature_status = _commit_signature_status(root, commit_sha)
+            if signature_status not in {"G", "U", "X", "Y"}:
+                errors.append(f"audit artifact commit {commit_sha[:12]} must be signed; git signature status={signature_status!r}")
     return errors
 
 
@@ -770,7 +784,12 @@ def _verify_privacy_boundary(root: Path) -> list[str]:
     return errors
 
 
-def verify(root: Path, *, append_only_base_ref: str | None = None) -> list[str]:
+def verify(
+    root: Path,
+    *,
+    append_only_base_ref: str | None = None,
+    require_signed_audit_commits: bool = False,
+) -> list[str]:
     errors: list[str] = []
     ledger_rows, ledger_errors = _verify_daily_ledger(root, append_only_base_ref)
     errors.extend(ledger_errors)
@@ -780,7 +799,13 @@ def verify(root: Path, *, append_only_base_ref: str | None = None) -> list[str]:
     errors.extend(_verify_attestations(root, ledger_rows))
     errors.extend(_verify_reports(root))
     errors.extend(_verify_status_docs(root))
-    errors.extend(_verify_track_record_commit_messages(root, base_ref=append_only_base_ref))
+    errors.extend(
+        _verify_track_record_audit_commits(
+            root,
+            base_ref=append_only_base_ref,
+            require_signed=require_signed_audit_commits,
+        )
+    )
     errors.extend(_verify_privacy_boundary(root))
     return errors
 
@@ -793,8 +818,17 @@ def main() -> int:
         default=None,
         help="Optional git ref whose public CSV rows must remain an exact prefix of current rows.",
     )
+    parser.add_argument(
+        "--require-signed-audit-commits",
+        action="store_true",
+        help="Require commits touching generated public audit artifacts to have a git signature.",
+    )
     args = parser.parse_args()
-    errors = verify(Path(args.root).resolve(), append_only_base_ref=args.append_only_base_ref)
+    errors = verify(
+        Path(args.root).resolve(),
+        append_only_base_ref=args.append_only_base_ref,
+        require_signed_audit_commits=args.require_signed_audit_commits,
+    )
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
