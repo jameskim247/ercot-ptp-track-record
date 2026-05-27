@@ -33,6 +33,12 @@ def _copy_public_fixture(root: Path) -> Path:
     return target
 
 
+def _write_status_docs(repo: Path, verifier) -> None:
+    summary = verifier._status_summary(repo)
+    (repo / "README.md").write_text(verifier._render_readme(summary), encoding="utf-8")
+    (repo / "carrier" / "current.md").write_text(verifier._render_current_carrier(summary), encoding="utf-8")
+
+
 def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> None:
     manifest_sha = "a" * 64
     row = {name: "" for name in verifier.LEDGER_COLUMNS}
@@ -83,6 +89,7 @@ def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> N
     )
     with (repo / verifier.TIMESTAMP_PROOFS).open("a", encoding="utf-8", newline="") as fh:
         csv.DictWriter(fh, fieldnames=verifier.TIMESTAMP_PROOF_COLUMNS).writerow(proof_row)
+    _write_status_docs(repo, verifier)
 
 
 def _append_pending_timestamp_fixture(repo: Path, verifier) -> Path:
@@ -117,6 +124,7 @@ def _append_pending_timestamp_fixture(repo: Path, verifier) -> Path:
     proof_input = repo / verifier._timestamp_proof_input_relpath(row)
     proof_input.parent.mkdir(parents=True, exist_ok=True)
     proof_input.write_text(verifier._timestamp_proof_input_payload(row), encoding="utf-8")
+    _write_status_docs(repo, verifier)
     return proof_input
 
 
@@ -175,6 +183,7 @@ def _append_opentimestamps_fixture(repo: Path, verifier) -> None:
     )
     with (repo / verifier.TIMESTAMP_PROOFS).open("a", encoding="utf-8", newline="") as fh:
         csv.DictWriter(fh, fieldnames=verifier.TIMESTAMP_PROOF_COLUMNS).writerow(proof_row)
+    _write_status_docs(repo, verifier)
 
 
 def _write_fake_ots(path: Path, *, exit_code: int) -> Path:
@@ -248,6 +257,7 @@ def _write_report_fixture(repo: Path, verifier) -> Path:
         min_delay_days=2,
     )
     markdown_path.write_text(verifier._render_report_markdown(summary, [row]), encoding="utf-8")
+    _write_status_docs(repo, verifier)
     return markdown_path
 
 
@@ -316,6 +326,24 @@ def main() -> int:
         errors = verifier.verify(repo)
         if not any("operational log contains forbidden public content pattern" in error for error in errors):
             print("unsafe operational log should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
+        readme = repo / "README.md"
+        current = repo / "carrier" / "current.md"
+        readme.write_text(readme.read_text(encoding="utf-8").replace("Prospective live rows: 0", "Prospective live rows: 999"), encoding="utf-8")
+        current.write_text(current.read_text(encoding="utf-8").replace("Valid rows: 0", "Valid rows: 999"), encoding="utf-8")
+        errors = verifier.verify(repo)
+        if not any("deterministic regeneration: README.md" in error for error in errors):
+            print("tampered README should fail status-doc verification", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+        if not any("deterministic regeneration: carrier/current.md" in error for error in errors):
+            print("tampered current carrier doc should fail status-doc verification", file=sys.stderr)
             for error in errors:
                 print(f"- {error}", file=sys.stderr)
             return 1
