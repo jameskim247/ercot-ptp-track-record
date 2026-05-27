@@ -10,6 +10,11 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_AS_OF_DATE = "2099-01-01"
+FIXTURE_DELIVERY_DATE = "2099-01-02"
+FIXTURE_PUBLICATION_TIME_CT = "2099-01-01T09:45:00-05:00"
+FIXTURE_TIMESTAMPED_AT_UTC = "2099-01-01T15:00:00+00:00"
+FIXTURE_REPORT_DATE = "2099-01-05"
 
 
 def _load_verifier():
@@ -39,13 +44,23 @@ def _write_status_docs(repo: Path, verifier) -> None:
     (repo / "carrier" / "current.md").write_text(verifier._render_current_carrier(summary), encoding="utf-8")
 
 
+def _replace_status_line(path: Path, *, prefix: str, replacement: str) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith(prefix):
+            lines[index] = replacement
+            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            return
+    raise AssertionError(f"missing status line prefix {prefix!r} in {path}")
+
+
 def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> None:
     manifest_sha = "a" * 64
     row = {name: "" for name in verifier.LEDGER_COLUMNS}
     row.update(
         {
-            "as_of_date": "2026-05-26",
-            "delivery_date": "2026-05-27",
+            "as_of_date": FIXTURE_AS_OF_DATE,
+            "delivery_date": FIXTURE_DELIVERY_DATE,
             "carrier": "w31",
             "model_label": "weather-w31-selftest",
             "git_commit": "deadbeef",
@@ -55,7 +70,7 @@ def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> N
             "prospective_or_backfill": "prospective",
             "pipeline_status": "SUCCESS",
             "valid_day_status": "valid",
-            "publication_time_ct": "2026-05-26T09:45:00-05:00",
+            "publication_time_ct": FIXTURE_PUBLICATION_TIME_CT,
             "manifest_sha256": manifest_sha,
             "advisory_detail_sha256": "d" * 64,
             "advisory_csv_sha256": "e" * 64,
@@ -68,7 +83,7 @@ def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> N
     with (repo / verifier.DAILY_LEDGER).open("a", encoding="utf-8", newline="") as fh:
         csv.DictWriter(fh, fieldnames=verifier.LEDGER_COLUMNS).writerow(row)
 
-    proof_input = repo / "hashes" / "opentimestamps" / "2026" / "05" / "2026-05-26_w31_aaaaaaaaaaaa.txt"
+    proof_input = repo / "hashes" / "opentimestamps" / "2099" / "01" / "2099-01-01_w31_aaaaaaaaaaaa.txt"
     proof_input.parent.mkdir(parents=True, exist_ok=True)
     proof_input.write_text("terminal timestamp proof input\n", encoding="utf-8")
 
@@ -83,7 +98,7 @@ def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> N
             "timestamp_status": "timestamp_failed_giving_up",
             "proof_input_path": proof_input.relative_to(repo).as_posix(),
             "proof_input_sha256": verifier._sha256_file(proof_input),
-            "timestamped_at_utc": "2026-06-03T12:00:00+00:00",
+            "timestamped_at_utc": FIXTURE_REPORT_DATE + "T12:00:00+00:00",
             "notes": notes,
         }
     )
@@ -97,8 +112,8 @@ def _append_pending_timestamp_fixture(repo: Path, verifier) -> Path:
     row = {name: "" for name in verifier.LEDGER_COLUMNS}
     row.update(
         {
-            "as_of_date": "2026-05-26",
-            "delivery_date": "2026-05-27",
+            "as_of_date": FIXTURE_AS_OF_DATE,
+            "delivery_date": FIXTURE_DELIVERY_DATE,
             "carrier": "w31",
             "model_label": "weather-w31-selftest",
             "git_commit": "deadbeef",
@@ -108,7 +123,7 @@ def _append_pending_timestamp_fixture(repo: Path, verifier) -> Path:
             "prospective_or_backfill": "prospective",
             "pipeline_status": "SUCCESS",
             "valid_day_status": "valid",
-            "publication_time_ct": "2026-05-26T09:45:00-05:00",
+            "publication_time_ct": FIXTURE_PUBLICATION_TIME_CT,
             "manifest_sha256": manifest_sha,
             "advisory_detail_sha256": "e" * 64,
             "advisory_csv_sha256": "f" * 64,
@@ -133,8 +148,8 @@ def _append_opentimestamps_fixture(repo: Path, verifier) -> None:
     row = {name: "" for name in verifier.LEDGER_COLUMNS}
     row.update(
         {
-            "as_of_date": "2026-05-26",
-            "delivery_date": "2026-05-27",
+            "as_of_date": FIXTURE_AS_OF_DATE,
+            "delivery_date": FIXTURE_DELIVERY_DATE,
             "carrier": "w31",
             "model_label": "weather-w31-selftest",
             "git_commit": "deadbeef",
@@ -144,7 +159,7 @@ def _append_opentimestamps_fixture(repo: Path, verifier) -> None:
             "prospective_or_backfill": "prospective",
             "pipeline_status": "SUCCESS",
             "valid_day_status": "valid",
-            "publication_time_ct": "2026-05-26T09:45:00-05:00",
+            "publication_time_ct": FIXTURE_PUBLICATION_TIME_CT,
             "manifest_sha256": manifest_sha,
             "advisory_detail_sha256": "f" * 64,
             "advisory_csv_sha256": "1" * 64,
@@ -177,7 +192,7 @@ def _append_opentimestamps_fixture(repo: Path, verifier) -> None:
             "proof_input_sha256": verifier._sha256_file(proof_input),
             "opentimestamps_proof_path": row["opentimestamps_proof_path"],
             "opentimestamps_proof_sha256": verifier._sha256_file(proof_path),
-            "timestamped_at_utc": "2026-05-26T15:00:00+00:00",
+            "timestamped_at_utc": FIXTURE_TIMESTAMPED_AT_UTC,
             "notes": "same-run",
         }
     )
@@ -202,8 +217,8 @@ def _write_fake_ots(path: Path, *, exit_code: int) -> Path:
 
 def _write_report_fixture(repo: Path, verifier) -> Path:
     row = {
-        "as_of_date": "2026-05-26",
-        "delivery_date": "2026-05-27",
+        "as_of_date": FIXTURE_AS_OF_DATE,
+        "delivery_date": FIXTURE_DELIVERY_DATE,
         "carrier": "w31",
         "manifest_sha256": "a" * 64,
         "methodology_version": "m2026.05.26.v1",
@@ -225,8 +240,8 @@ def _write_report_fixture(repo: Path, verifier) -> Path:
         "ercot_data_source": "ercot-public-lmp-lake",
         "ercot_data_product": "lmp_hourly_da_rt",
         "ercot_data_snapshot_sha256": "4" * 64,
-        "ercot_data_fetch_time_utc": "2026-05-30T12:00:00+00:00",
-        "ercot_data_watermark": "2026-05-27",
+        "ercot_data_fetch_time_utc": FIXTURE_REPORT_DATE + "T12:00:00+00:00",
+        "ercot_data_watermark": FIXTURE_DELIVERY_DATE,
         "private_outcome_sha256": "5" * 64,
     }
     outcome_path = repo / verifier.OUTCOME_SUMMARIES
@@ -238,15 +253,15 @@ def _write_report_fixture(repo: Path, verifier) -> Path:
 
     report_dir = repo / "reports" / "weekly"
     report_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = report_dir / "2026-05-27_to_2026-05-27.csv"
+    csv_path = report_dir / f"{FIXTURE_DELIVERY_DATE}_to_{FIXTURE_DELIVERY_DATE}.csv"
     with csv_path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=verifier.OUTCOME_SUMMARY_COLUMNS)
         writer.writeheader()
         writer.writerow(row)
 
-    start = verifier.date.fromisoformat("2026-05-27")
-    report_date = verifier.date.fromisoformat("2026-05-30")
-    markdown_path = report_dir / "2026-05-27_to_2026-05-27.md"
+    start = verifier.date.fromisoformat(FIXTURE_DELIVERY_DATE)
+    report_date = verifier.date.fromisoformat(FIXTURE_REPORT_DATE)
+    markdown_path = report_dir / f"{FIXTURE_DELIVERY_DATE}_to_{FIXTURE_DELIVERY_DATE}.md"
     summary = verifier._report_summary(
         repo,
         kind="weekly",
@@ -366,8 +381,8 @@ def main() -> int:
         repo = _copy_public_fixture(Path(tmp_raw))
         readme = repo / "README.md"
         current = repo / "carrier" / "current.md"
-        readme.write_text(readme.read_text(encoding="utf-8").replace("Prospective live rows: 0", "Prospective live rows: 999"), encoding="utf-8")
-        current.write_text(current.read_text(encoding="utf-8").replace("Valid rows: 0", "Valid rows: 999"), encoding="utf-8")
+        _replace_status_line(readme, prefix="- Prospective live rows:", replacement="- Prospective live rows: 999")
+        _replace_status_line(current, prefix="- Valid rows:", replacement="- Valid rows: 999")
         errors = verifier.verify(repo)
         if not any("deterministic regeneration: README.md" in error for error in errors):
             print("tampered README should fail status-doc verification", file=sys.stderr)
