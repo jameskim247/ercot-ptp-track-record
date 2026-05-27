@@ -15,3 +15,10 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-05-27T01:42:32.363510+00:00 | 2026-05-26 | w31 | public_hash_appended | valid_day_status=valid |
 | 2026-05-27T01:42:32.478401+00:00 | 2026-05-26 | w31 | outcome_waiting |  |
 | 2026-05-27T10:23:01.115054+00:00 | 2026-05-26 | w31 | timestamp_proof_committed | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1; proof_path=hashes/opentimestamps/2026/05/2026-05-26_w31_cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1.ots; proof_relpath=hashes/opentimestamps/2026/05/2026-05-26_w31_cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1.ots |
+| 2026-05-27T14:45:12.155088+00:00 | 2026-05-27 | w31 | scheduled |  |
+| 2026-05-27T14:45:12.168409+00:00 | 2026-05-27 | w31 | paper_complete |  |
+| 2026-05-27T14:45:12.168802+00:00 | 2026-05-27 | w31 | awaiting_canary |  |
+| 2026-05-27T14:45:12.169298+00:00 | 2026-05-27 | w31 | canary_checked | canary_status=OK |
+| 2026-05-27T14:45:12.184573+00:00 | 2026-05-27 | w31 | manifest_written | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d |
+| 2026-05-27T14:45:12.184964+00:00 | 2026-05-27 | w31 | timestamp_requested |  |
+| 2026-05-27T14:45:12.187125+00:00 | 2026-05-27 | w31 | public_hash_appended | valid_day_status=valid |

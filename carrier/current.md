@@ -12,12 +12,12 @@ Public role: current prospective ERCOT PTP paper/live track-record carrier.
 
 ## Public Ledger Status
 
-- Prospective rows: 1
-- Valid rows: 1
+- Prospective rows: 2
+- Valid rows: 2
 - Invalid rows: 0
 - Excluded rows: 0
-- Latest as-of date: 2026-05-26
-- Latest delivery date: 2026-05-27
+- Latest as-of date: 2026-05-27
+- Latest delivery date: 2026-05-28
 - Latest valid-day status: valid
 - Latest timestamp status: timestamp_pending
-- Latest manifest SHA256: `cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1`
+- Latest manifest SHA256: `70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d`
