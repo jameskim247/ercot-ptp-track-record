@@ -57,7 +57,7 @@ The verifier checks that each attestation uses an OpenSSH signature, verifies ag
 
 ## Verify Outcome And Report Linkage
 
-The public outcome summary, when present, must reference an existing public ledger `manifest_sha256`, include `rows_counted_sha256`, include the private outcome hash, and pin the ERCOT data snapshot hash once settlement data is joined.
+The public outcome summary, when present, must reference an existing public ledger `manifest_sha256`, and that ledger row must be `prospective`, `valid`, and `carrier=w31`. It must include `rows_counted_sha256`, include the private outcome hash, and pin the ERCOT data snapshot hash once settlement data is joined.
 
 Generated weekly and monthly reports must include a generated-file header, a companion CSV, `Rows counted SHA256`, and the methodology version set used for the covered period.
 
