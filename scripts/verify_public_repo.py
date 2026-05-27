@@ -902,6 +902,11 @@ def _verify_outcome_summaries(
             or ledger_row["methodology_version"] != row["methodology_version"]
         ):
             errors.append(f"outcome summary line {idx} does not match referenced ledger row")
+        else:
+            if ledger_row.get("prospective_or_backfill") != "prospective":
+                errors.append(f"outcome summary line {idx} references non-prospective ledger row")
+            if ledger_row.get("valid_day_status") != "valid":
+                errors.append(f"outcome summary line {idx} references non-valid ledger row")
     return errors
 
 

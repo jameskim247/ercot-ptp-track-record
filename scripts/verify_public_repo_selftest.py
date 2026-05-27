@@ -318,6 +318,38 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
         repo = _copy_public_fixture(Path(tmp_raw))
+        _append_terminal_timestamp_fixture(repo, verifier, notes="ots retry gave up after configured retry window")
+        _write_report_fixture(repo, verifier)
+        ledger_path = repo / verifier.DAILY_LEDGER
+        with ledger_path.open("r", encoding="utf-8", newline="") as fh:
+            rows = list(csv.DictReader(fh))
+        rows[-1]["valid_day_status"] = "invalid"
+        with ledger_path.open("w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=verifier.LEDGER_COLUMNS)
+            writer.writeheader()
+            writer.writerows(rows)
+        errors = verifier.verify(repo)
+        if not any("references non-valid ledger row" in error for error in errors):
+            print("public outcome summary referencing invalid ledger row should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+        rows[-1]["valid_day_status"] = "valid"
+        rows[-1]["prospective_or_backfill"] = "backfill"
+        with ledger_path.open("w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=verifier.LEDGER_COLUMNS)
+            writer.writeheader()
+            writer.writerows(rows)
+        errors = verifier.verify(repo)
+        if not any("references non-prospective ledger row" in error for error in errors):
+            print("public outcome summary referencing backfill ledger row should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
         log_path = repo / "carrier" / "operational_log.md"
         log_path.write_text(
             log_path.read_text(encoding="utf-8") + "source=SRC shadow_bid=99 /home/jk/private w0\n",
