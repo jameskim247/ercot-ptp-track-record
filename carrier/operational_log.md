@@ -13,3 +13,5 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-05-27T01:42:32.299876+00:00 | 2026-05-26 | w31 | manifest_written | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1 |
 | 2026-05-27T01:42:32.300560+00:00 | 2026-05-26 | w31 | timestamp_requested |  |
 | 2026-05-27T01:42:32.363510+00:00 | 2026-05-26 | w31 | public_hash_appended | valid_day_status=valid |
+| 2026-05-27T01:42:32.478401+00:00 | 2026-05-26 | w31 | outcome_waiting |  |
+| 2026-05-27T10:23:01.115054+00:00 | 2026-05-26 | w31 | timestamp_proof_committed | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1; proof_path=hashes/opentimestamps/2026/05/2026-05-26_w31_cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1.ots; proof_relpath=hashes/opentimestamps/2026/05/2026-05-26_w31_cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1.ots |
