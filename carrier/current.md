@@ -14,7 +14,12 @@ Private role of W0: risk baseline and diligence comparator only. W0 is not publi
 
 ## Public Ledger Status
 
-- Prospective rows: 0
-- Valid rows: 0
+- Prospective rows: 1
+- Valid rows: 1
 - Invalid rows: 0
 - Excluded rows: 0
+- Latest as-of date: 2026-05-26
+- Latest delivery date: 2026-05-27
+- Latest valid-day status: valid
+- Latest timestamp status: timestamp_pending
+- Latest manifest SHA256: `cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1`

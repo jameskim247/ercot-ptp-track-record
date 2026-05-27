@@ -12,12 +12,13 @@ This repository does not publish live trade instructions, raw scored signals, mo
 
 - Public carrier: W31.
 - Methodology version: `m2026.05.26.v1`.
-- Prospective live rows: 0.
-- Valid rows: 0.
+- Prospective live rows: 1.
+- Valid rows: 1.
 - Invalid rows: 0.
 - Excluded rows: 0.
 - Backfill rows: 0.
-- Latest as-of date: none.
+- Latest as-of date: 2026-05-26.
+- Latest manifest SHA256: `cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1`.
 
 ## Public Artifacts
 
