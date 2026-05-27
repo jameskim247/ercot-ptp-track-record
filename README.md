@@ -43,4 +43,4 @@ For manual verification, start with `hashes/verification_guide.md`.
 
 ## Private Boundary
 
-Full manifests, advisories, outcome joins, W31-vs-W0 evidence, walk-forward evidence, canary logs, and reproducibility materials remain in the private audit vault and diligence room. Serious buyers may request that package under NDA.
+Full manifests, advisories, outcome joins, baseline/research comparison evidence, canary logs, and reproducibility materials remain in the private audit vault and diligence room. Serious buyers may request that package under NDA.

@@ -7,7 +7,7 @@ Core rules:
 - Publish prospective evidence hashes before outcomes are known.
 - Record invalid and excluded days instead of omitting them.
 - Keep W31 as the only public carrier unless a future public carrier is explicitly promoted.
-- Keep W0 and other baseline/research evidence private under NDA.
+- Keep baseline and research comparison evidence private under NDA.
 - Publish delayed aggregate outcomes only after settlement data is available.
 - Preserve append-only history. Corrections append new rows and notes.
 

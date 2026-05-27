@@ -1339,7 +1339,7 @@ def _render_readme(summary: dict[str, object]) -> str:
             "",
             "## Private Boundary",
             "",
-            "Full manifests, advisories, outcome joins, W31-vs-W0 evidence, walk-forward evidence, canary logs, and reproducibility materials remain in the private audit vault and diligence room. Serious buyers may request that package under NDA.",
+            "Full manifests, advisories, outcome joins, baseline/research comparison evidence, canary logs, and reproducibility materials remain in the private audit vault and diligence room. Serious buyers may request that package under NDA.",
             "",
         ]
     )
@@ -1360,8 +1360,6 @@ def _render_current_carrier(summary: dict[str, object]) -> str:
         f"Methodology version: `{summary['methodology_version']}`",
         "",
         "Public role: current prospective ERCOT PTP paper/live track-record carrier.",
-        "",
-        "Private role of W0: risk baseline and diligence comparator only. W0 is not published in this repository.",
         "",
         "## Public Ledger Status",
         "",

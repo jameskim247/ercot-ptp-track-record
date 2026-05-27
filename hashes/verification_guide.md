@@ -23,7 +23,7 @@ python3 scripts/verify_public_repo.py . --append-only-base-ref origin/main
 
 ## Verify Backfill Separation
 
-Backfill rows belong only in `hashes/backfill_manifest_hashes.csv`. Buyer-facing prospective reports must not count backfill rows.
+Backfill rows belong only in `hashes/backfill_manifest_hashes.csv`. That file is header-only by default and should be populated only for explicitly labeled historical evidence with clean timestamp provenance. Buyer-facing prospective reports must not count backfill rows.
 
 ## Verify Append-Only History
 
@@ -67,4 +67,4 @@ The verifier rejects raw signal artifact filenames and content patterns associat
 
 ## Public Boundary
 
-This repo proves timestamp discipline and delayed public reporting. It does not reveal raw signals, live advisories, model internals, or W0 comparator data.
+This repo proves timestamp discipline and delayed public reporting. It does not reveal raw signals, live advisories, model internals, or baseline comparator data.
