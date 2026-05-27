@@ -1,0 +1,3 @@
+# OpenSSH allowed_signers authority file for private manifest attestations.
+# Rotate keys only through signed PRs so buyers can audit authority changes.
+ercot-ptp-track-record ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPxkUK9KmRJhF0afa86E+M18oWEHfgEa6UV3f1qAKRGO ercot-ptp-track-record attestation 2026-05-26
