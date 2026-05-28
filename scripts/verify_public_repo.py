@@ -47,6 +47,7 @@ OUTCOME_SUMMARY_COLUMNS = (
     "carrier",
     "manifest_sha256",
     "methodology_version",
+    "outcome_methodology_version",
     "outcome_status",
     "rows_counted_sha256",
     "position_count",
