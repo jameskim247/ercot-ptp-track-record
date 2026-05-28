@@ -1,0 +1,16 @@
+{
+  "as_of_date": "2026-05-28",
+  "carrier": "w31",
+  "delivery_date": "2026-05-29",
+  "manifest_sha256": "f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192",
+  "private_manifest_path_redacted": "private_audit/2026/05/28/w31/manifest.json",
+  "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPxkUK9KmRJhF0afa86E+M18oWEHfgEa6UV3f1qAKRGO ercot-ptp-track-record attestation 2026-05-26",
+  "public_ledger_row_sha256": "eff15323dcc5deea4604a54050db680a6ba728135a6fee8fc7b96c62e635e165",
+  "schema_version": "private-manifest-attestation-v0",
+  "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAg/GRQr0qZEmEXRp9rzoT4zXyhYQ\nd+ARrpRXd/WoApEY4AAAAiZXJjb3QtcHRwLXRyYWNrLXJlY29yZC1tYW5pZmVzdC12MQAA\nAAAAAAAGc2hhNTEyAAAAUwAAAAtzc2gtZWQyNTUxOQAAAEC8hBrMCYQ9MuY6R4havMlEyn\n9x4oN251Iy2zNU452yyTVoZDKzG2QGUj7+FWjVbIoKg8C2zV1sGmlK+U3CCiwN\n-----END SSH SIGNATURE-----\n",
+  "signature_algorithm": "openssh-signature-v1",
+  "signature_identity": "ercot-ptp-track-record",
+  "signature_namespace": "ercot-ptp-track-record-manifest-v1",
+  "verified_at_utc": "2026-05-28T12:45:19.171712+00:00",
+  "verifier_commit": "138d272b82d4d90a4522ed062633ff51f8753a4b"
+}

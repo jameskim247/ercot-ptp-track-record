@@ -25,3 +25,11 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-05-27T14:45:14.619160+00:00 | 2026-05-27 | w31 | public_repo_pushed |  |
 | 2026-05-27T14:45:14.619739+00:00 | 2026-05-27 | w31 | outcome_waiting |  |
 | 2026-05-27T18:06:26.696063+00:00 | 2026-05-27 | w31 | timestamp_proof_committed | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d; proof_path=hashes/opentimestamps/2026/05/2026-05-27_w31_70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d.ots; proof_relpath=hashes/opentimestamps/2026/05/2026-05-27_w31_70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d.ots |
+| 2026-05-28T12:45:16.126649+00:00 | 2026-05-28 | w31 | scheduled |  |
+| 2026-05-28T12:45:16.196400+00:00 | 2026-05-28 | w31 | paper_complete |  |
+| 2026-05-28T12:45:16.197234+00:00 | 2026-05-28 | w31 | awaiting_canary |  |
+| 2026-05-28T12:45:16.197667+00:00 | 2026-05-28 | w31 | canary_checked | canary_status=OK |
+| 2026-05-28T12:45:16.255415+00:00 | 2026-05-28 | w31 | manifest_written | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192 |
+| 2026-05-28T12:45:16.255996+00:00 | 2026-05-28 | w31 | timestamp_requested |  |
+| 2026-05-28T12:45:19.167930+00:00 | 2026-05-28 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/05/2026-05-28_w31_f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192.ots |
+| 2026-05-28T12:45:19.171048+00:00 | 2026-05-28 | w31 | public_hash_appended | valid_day_status=valid |
