@@ -1278,10 +1278,26 @@ def _latest_report(root: Path, kind: str) -> str:
     return reports[-1].relative_to(root).as_posix() if reports else ""
 
 
+def _timestamp_status_by_manifest(root: Path) -> dict[str, str]:
+    rows = _read_csv_rows_optional(root / TIMESTAMP_PROOFS, TIMESTAMP_PROOF_COLUMNS)
+    statuses: dict[str, str] = {}
+    for row in rows:
+        manifest_sha = row.get("manifest_sha256", "")
+        status = row.get("timestamp_status", "")
+        if manifest_sha and status:
+            statuses[manifest_sha] = status
+    return statuses
+
+
 def _status_summary(root: Path) -> dict[str, object]:
     daily_rows = _read_csv_rows_optional(root / DAILY_LEDGER, LEDGER_COLUMNS)
     backfill_rows = _read_csv_rows_optional(root / BACKFILL_LEDGER, LEDGER_COLUMNS)
-    latest = _latest_row(daily_rows)
+    latest_raw = _latest_row(daily_rows)
+    latest = dict(latest_raw) if latest_raw else None
+    if latest:
+        proof_status = _timestamp_status_by_manifest(root).get(latest.get("manifest_sha256", ""))
+        if proof_status:
+            latest["timestamp_status"] = proof_status
     valid_rows = [row for row in daily_rows if row.get("valid_day_status") == "valid"]
     invalid_rows = [row for row in daily_rows if row.get("valid_day_status") == "invalid"]
     excluded_rows = [row for row in daily_rows if row.get("valid_day_status") == "excluded"]

@@ -23,5 +23,5 @@ Mechanism framing: topology/market-structure driven selection with a standby wea
 - Latest as-of date: 2026-05-27
 - Latest delivery date: 2026-05-28
 - Latest valid-day status: valid
-- Latest timestamp status: timestamp_pending
+- Latest timestamp status: opentimestamps_proof
 - Latest manifest SHA256: `70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d`
