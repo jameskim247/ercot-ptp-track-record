@@ -3,8 +3,8 @@
 ## m2026.05.26.v1
 
 - Initial public methodology.
-- W31 is the public carrier.
+- Public carrier code W31 is an audit identifier, not a public strategy description.
 - Public ledger is prospective-only.
 - Backfill ledger is separate and excluded from prospective reports.
 - Corrections are append-only.
-- W0 remains private under NDA.
+- Baseline and research comparison evidence remains private under NDA.

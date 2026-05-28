@@ -2,7 +2,7 @@
 
 A prospective day is valid only when all required conditions hold:
 
-- W31 config was loaded.
+- The approved production config was loaded.
 - Weather preflight passed.
 - Advisory artifacts were produced before the cutoff.
 - Canary status was OK.

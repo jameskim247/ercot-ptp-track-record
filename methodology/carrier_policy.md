@@ -1,14 +1,14 @@
 # Carrier Policy
 
-Current public carrier: W31.
+Current public carrier code: W31.
 
-W31 is the only carrier allowed in the prospective public ledger at repository launch.
+Carrier codes are audit identifiers for a release/process. They are not public strategy descriptions, model-mechanism claims, or alpha-source claims. The carrier code appears in public ledgers, timestamp proof inputs, attestations, private-vault paths, state logs, and outcome linkage so that public hashes can be reconciled to private diligence materials without rewriting history.
 
-W0 is an internal risk baseline and NDA diligence comparator. W0 rows, W0 tables, and W31-vs-W0 reports must not be published in this repository.
-
-Any future public carrier change requires:
+Any future public carrier-code change requires:
 
 - Methodology update.
 - Carrier status update.
 - Changelog entry before the first row under the new carrier.
 - Report segmentation before and after the carrier change.
+
+Baseline and research comparison evidence remains private under NDA.
