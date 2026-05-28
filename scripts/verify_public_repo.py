@@ -727,6 +727,7 @@ def _read_base_csv_rows(
     base_ref: str,
     relpath: Path,
     columns: tuple[str, ...],
+    allow_header_only_schema_change: bool = False,
 ) -> tuple[list[dict[str, str]], list[str]]:
     result = subprocess.run(
         ["git", "--no-optional-locks", "show", f"{base_ref}:{relpath.as_posix()}"],
@@ -739,6 +740,9 @@ def _read_base_csv_rows(
         return [], []
     reader = csv.DictReader(result.stdout.splitlines())
     if tuple(reader.fieldnames or ()) != columns:
+        rows = list(reader)
+        if allow_header_only_schema_change and not rows:
+            return [], []
         return [], [f"base schema mismatch at {base_ref}:{relpath.as_posix()}: {reader.fieldnames}"]
     return list(reader), []
 
@@ -749,11 +753,18 @@ def _verify_append_only_csv(
     relpath: Path,
     columns: tuple[str, ...],
     base_ref: str,
+    allow_header_only_schema_change: bool = False,
 ) -> list[str]:
     current_rows, current_errors = _read_csv_rows(root / relpath, columns)
     if current_errors:
         return current_errors
-    base_rows, base_errors = _read_base_csv_rows(root, base_ref=base_ref, relpath=relpath, columns=columns)
+    base_rows, base_errors = _read_base_csv_rows(
+        root,
+        base_ref=base_ref,
+        relpath=relpath,
+        columns=columns,
+        allow_header_only_schema_change=allow_header_only_schema_change,
+    )
     if base_errors:
         return base_errors
     if len(current_rows) < len(base_rows):
@@ -877,6 +888,7 @@ def _verify_outcome_summaries(
                 relpath=OUTCOME_SUMMARIES,
                 columns=OUTCOME_SUMMARY_COLUMNS,
                 base_ref=append_only_base_ref,
+                allow_header_only_schema_change=True,
             )
         )
 
