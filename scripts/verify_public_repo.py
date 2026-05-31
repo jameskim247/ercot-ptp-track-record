@@ -147,6 +147,9 @@ LEGACY_AUDIT_COMMIT_MESSAGE_EXEMPTIONS = frozenset(
     {
         # Signed operational-log note from the initial direct-push transition.
         "82b35f8a36bd154de2c00352df5b5e40722f7306",
+        # Recurrence of the same commit-subject shadow bug, already published
+        # under branch protection; fixed in ptp-trade automation at a5994f96.
+        "00cc34060256b92d6ebec09b4dc32d84c351ef07",
     }
 )
 GENERATED_AUDIT_COMMIT_PATH_PREFIXES = (

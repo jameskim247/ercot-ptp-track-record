@@ -35,3 +35,4 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-05-28T12:45:19.171048+00:00 | 2026-05-28 | w31 | public_hash_appended | valid_day_status=valid |
 | 2026-05-28T12:45:22.408796+00:00 | 2026-05-28 | w31 | public_repo_pushed |  |
 | 2026-05-28T12:45:22.413200+00:00 | 2026-05-28 | w31 | outcome_waiting |  |
+| 2026-05-29T12:45:09.801060+00:00 | 2026-05-29 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
