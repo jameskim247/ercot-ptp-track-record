@@ -36,3 +36,11 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-05-28T12:45:22.408796+00:00 | 2026-05-28 | w31 | public_repo_pushed |  |
 | 2026-05-28T12:45:22.413200+00:00 | 2026-05-28 | w31 | outcome_waiting |  |
 | 2026-05-29T12:45:09.801060+00:00 | 2026-05-29 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
+| 2026-06-01T12:45:15.535476+00:00 | 2026-06-01 | w31 | scheduled |  |
+| 2026-06-01T12:45:15.554523+00:00 | 2026-06-01 | w31 | paper_complete |  |
+| 2026-06-01T12:45:15.554970+00:00 | 2026-06-01 | w31 | awaiting_canary |  |
+| 2026-06-01T12:45:15.555316+00:00 | 2026-06-01 | w31 | canary_checked | canary_status=OK |
+| 2026-06-01T12:45:15.579030+00:00 | 2026-06-01 | w31 | manifest_written | manifest_sha256=8ae1e969584454065331e6a8ee2bb3354a3bf3dfca8bd176ad16610766adf5a0 |
+| 2026-06-01T12:45:15.579623+00:00 | 2026-06-01 | w31 | timestamp_requested |  |
+| 2026-06-01T12:45:18.721294+00:00 | 2026-06-01 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/06/2026-06-01_w31_8ae1e969584454065331e6a8ee2bb3354a3bf3dfca8bd176ad16610766adf5a0.ots |
+| 2026-06-01T12:45:18.722498+00:00 | 2026-06-01 | w31 | public_hash_appended | valid_day_status=valid |
