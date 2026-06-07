@@ -25,11 +25,25 @@ python3 scripts/verify_public_repo.py . --append-only-base-ref origin/main
 
 Backfill rows belong only in `hashes/backfill_manifest_hashes.csv`. That file is header-only by default and should be populated only for explicitly labeled historical evidence with clean timestamp provenance. Buyer-facing prospective reports must not count backfill rows.
 
+## Verify Exception Ledgers
+
+Exception ledgers live under `releases/` and explain gaps or private-vault recovery limitations without creating normal performance rows.
+
+`releases/publication_exceptions.csv` records dates where no normal prospective row is asserted. Each row must use the exact schema, carrier `w31`, status `publication_gap`, a nonempty public reason, a nonempty evidence policy, and a unique `(as_of_date, carrier)` key. A publication exception must not overlap a normal prospective row in `hashes/daily_manifest_hashes.csv`.
+
+`releases/private_vault_exceptions.csv` records public rows whose restored private vault is missing a specific private manifest artifact. Each row must use the exact schema, status `private_manifest_unrecoverable`, a unique `(as_of_date, delivery_date, carrier, manifest_sha256)` key, and an existing daily ledger row with the same key. Its `attestation_path` must be deterministic:
+
+```text
+attestations/private_manifest/YYYY/MM/<as_of_date>_<carrier>_<manifest_sha256_prefix12>.json
+```
+
+The referenced attestation must exist, match the exception row and public ledger row hash, and verify against `attestations/allowed_signers`.
+
 ## Verify Append-Only History
 
 Use git history to inspect row additions. Existing ledger rows should not be edited or deleted. Corrections must append a new row and a note under `corrections/`.
 
-The verifier enforces this mechanically for the manifest ledgers and delayed outcome summary when `--append-only-base-ref` is supplied. Rows first published as `timestamp_pending` must remain unchanged; later proof completion is recorded only by appending to `hashes/timestamp_proofs.csv`.
+The verifier enforces this mechanically for the manifest ledgers, exception ledgers, timestamp proof ledger, and delayed outcome summary when `--append-only-base-ref` is supplied. Rows first published as `timestamp_pending` must remain unchanged; later proof completion is recorded only by appending to `hashes/timestamp_proofs.csv`.
 
 ## Verify Timestamp Proofs
 
@@ -60,6 +74,8 @@ The verifier checks that each attestation uses an OpenSSH signature, verifies ag
 The public outcome summary, when present, must reference an existing public ledger `manifest_sha256`, and that ledger row must be `prospective`, `valid`, and use the current public carrier code. It must include `rows_counted_sha256`, include the private outcome hash, and pin the ERCOT data snapshot hash once settlement data is joined.
 
 Generated weekly and monthly reports must include a generated-file header, a companion CSV, `Rows counted SHA256`, and the methodology version set used for the covered period.
+
+Early performance can be sparse. Outcome summaries and weekly/monthly reports are delayed public aggregates; exception rows and unsettled days are not performance rows.
 
 ## Verify The Privacy Boundary
 

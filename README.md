@@ -28,12 +28,22 @@ This repository does not publish live trade instructions, raw scored signals, mo
 - `hashes/timestamp_proofs.csv`: append-only timestamp proof ledger.
 - `hashes/opentimestamps/`: timestamp proof inputs and OpenTimestamps proof files.
 - `attestations/private_manifest/`: signed attestations that a public hash matched a private manifest.
+- `releases/publication_exceptions.csv`: public gap ledger for dates where no normal prospective row is asserted.
+- `releases/private_vault_exceptions.csv`: public exception ledger for missing private-vault artifacts backed by signed attestations.
 - `carrier/current.md`: current public carrier status.
 - `carrier/operational_log.md`: public-safe automation event log.
 - `methodology/safety_overlay.md`: public-safe explanation of standby safety overlays.
 - `reports/weekly/` and `reports/monthly/`: delayed aggregate reports once enough settled outcomes exist.
 - `samples/delayed_advisory_examples/`: approved long-delayed examples with aggregate counts and hashes only.
 - `methodology/`: public rules, versioning, risk metrics, exclusions, and disclaimers.
+
+## How To Read Rows
+
+Normal prospective rows in `hashes/daily_manifest_hashes.csv` are the performance-bearing public record: each one asserts that a pre-deadline private manifest existed, was hash-published, attested, and later became eligible for delayed outcome reporting.
+
+Exception rows in `releases/` are transparency records, not performance rows. A `publication_gap` records that no normal prospective row is asserted for that date. A `private_manifest_unrecoverable` row records that a public hash row remains public, but one restored private-vault artifact is unavailable and the public attestation is the surviving signed linkage.
+
+Early performance can be sparse. Outcome and report rows appear only after settlement data is available and public-safe aggregation checks pass; missing delayed outcome rows should not be read as live trading performance.
 
 ## Verification
 

@@ -54,6 +54,18 @@ def _replace_status_line(path: Path, *, prefix: str, replacement: str) -> None:
     raise AssertionError(f"missing status line prefix {prefix!r} in {path}")
 
 
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def _write_csv(path: Path, columns: tuple[str, ...], rows: list[dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def _append_terminal_timestamp_fixture(repo: Path, verifier, *, notes: str) -> None:
     manifest_sha = "a" * 64
     row = {name: "" for name in verifier.LEDGER_COLUMNS}
@@ -285,6 +297,58 @@ def main() -> int:
         errors = verifier.verify(repo)
         if errors:
             print("terminal timestamp fixture should verify, got:", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
+        path = repo / verifier.PUBLICATION_EXCEPTIONS
+        rows = _read_csv(path)
+        rows.append(dict(rows[0]))
+        _write_csv(path, verifier.PUBLICATION_EXCEPTION_COLUMNS, rows)
+        errors = verifier.verify(repo)
+        if not any("duplicate publication exception key" in error for error in errors):
+            print("duplicate publication exception should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
+        path = repo / verifier.PUBLICATION_EXCEPTIONS
+        rows = _read_csv(path)
+        rows[0]["as_of_date"] = "2026-06-01"
+        _write_csv(path, verifier.PUBLICATION_EXCEPTION_COLUMNS, rows)
+        errors = verifier.verify(repo)
+        if not any("conflicts with normal prospective ledger row" in error for error in errors):
+            print("publication exception overlapping normal ledger row should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
+        path = repo / verifier.PRIVATE_VAULT_EXCEPTIONS
+        rows = _read_csv(path)
+        rows[0]["attestation_path"] = "attestations/private_manifest/2026/06/wrong.json"
+        _write_csv(path, verifier.PRIVATE_VAULT_EXCEPTION_COLUMNS, rows)
+        errors = verifier.verify(repo)
+        if not any("attestation_path must be" in error for error in errors):
+            print("private-vault exception with nondeterministic attestation path should fail", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
+        path = repo / "attestations" / "private_manifest" / "2026" / "06" / "2026-06-01_w31_8ae1e9695844.json"
+        payload = verifier.json.loads(path.read_text(encoding="utf-8"))
+        payload["manifest_sha256"] = "0" * 64
+        path.write_text(verifier.json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        errors = verifier.verify(repo)
+        if not any("attestation manifest_sha256 mismatch" in error for error in errors):
+            print("private-vault exception with tampered attestation payload should fail", file=sys.stderr)
             for error in errors:
                 print(f"- {error}", file=sys.stderr)
             return 1

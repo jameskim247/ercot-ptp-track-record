@@ -75,6 +75,8 @@ DAILY_LEDGER = Path("hashes/daily_manifest_hashes.csv")
 BACKFILL_LEDGER = Path("hashes/backfill_manifest_hashes.csv")
 TIMESTAMP_PROOFS = Path("hashes/timestamp_proofs.csv")
 OUTCOME_SUMMARIES = Path("reports/audits/daily_outcome_summaries.csv")
+PUBLICATION_EXCEPTIONS = Path("releases/publication_exceptions.csv")
+PRIVATE_VAULT_EXCEPTIONS = Path("releases/private_vault_exceptions.csv")
 CORRECTIONS_ROOT = Path("corrections")
 ATTESTATION_ROOT = Path("attestations/private_manifest")
 ATTESTATION_ALLOWED_SIGNERS = Path("attestations/allowed_signers")
@@ -94,6 +96,27 @@ TIMESTAMP_PROOF_COLUMNS = (
     "opentimestamps_proof_sha256",
     "timestamped_at_utc",
     "notes",
+)
+
+PUBLICATION_EXCEPTION_COLUMNS = (
+    "as_of_date",
+    "carrier",
+    "status",
+    "reason",
+    "evidence_policy",
+    "recorded_at_utc",
+)
+
+PRIVATE_VAULT_EXCEPTION_COLUMNS = (
+    "as_of_date",
+    "delivery_date",
+    "carrier",
+    "manifest_sha256",
+    "status",
+    "reason",
+    "evidence_policy",
+    "attestation_path",
+    "recorded_at_utc",
 )
 
 FORBIDDEN_PATH_PATTERNS = (
@@ -1267,6 +1290,171 @@ def _read_csv_rows_optional(path: Path, columns: tuple[str, ...]) -> list[dict[s
     return [] if errors else rows
 
 
+def _read_optional_csv_rows(path: Path, columns: tuple[str, ...]) -> tuple[list[dict[str, str]], list[str]]:
+    if not path.exists():
+        return [], []
+    return _read_csv_rows(path, columns)
+
+
+def _validate_iso_date(value: str, *, relpath: Path, line_number: int, column: str) -> list[str]:
+    if not value:
+        return [f"{relpath.as_posix()} line {line_number} missing {column}"]
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return [f"{relpath.as_posix()} line {line_number} has invalid {column}: {value!r}"]
+    return []
+
+
+def _private_manifest_attestation_relpath(row: dict[str, str]) -> Path:
+    as_of = row.get("as_of_date", "")
+    carrier = row.get("carrier", "")
+    manifest_sha = row.get("manifest_sha256", "")
+    if not as_of or not carrier or len(manifest_sha) < 12:
+        return Path("")
+    try:
+        parsed = date.fromisoformat(as_of)
+    except ValueError:
+        return Path("")
+    return ATTESTATION_ROOT / f"{parsed:%Y}" / f"{parsed:%m}" / f"{as_of}_{carrier}_{manifest_sha[:12]}.json"
+
+
+def _verify_publication_exceptions(
+    root: Path,
+    *,
+    ledger_rows: list[dict[str, str]],
+    append_only_base_ref: str | None,
+) -> list[str]:
+    rows, errors = _read_optional_csv_rows(root / PUBLICATION_EXCEPTIONS, PUBLICATION_EXCEPTION_COLUMNS)
+    if append_only_base_ref and (root / PUBLICATION_EXCEPTIONS).exists():
+        errors.extend(
+            _verify_append_only_csv(
+                root,
+                relpath=PUBLICATION_EXCEPTIONS,
+                columns=PUBLICATION_EXCEPTION_COLUMNS,
+                base_ref=append_only_base_ref,
+            )
+        )
+    normal_keys = {
+        (row.get("as_of_date", ""), row.get("carrier", ""))
+        for row in ledger_rows
+        if row.get("prospective_or_backfill") == "prospective"
+    }
+    seen: set[tuple[str, str]] = set()
+    for idx, row in enumerate(rows, start=2):
+        for column in PUBLICATION_EXCEPTION_COLUMNS:
+            if not row.get(column, ""):
+                errors.append(f"{PUBLICATION_EXCEPTIONS.as_posix()} line {idx} missing {column}")
+        errors.extend(_validate_iso_date(row.get("as_of_date", ""), relpath=PUBLICATION_EXCEPTIONS, line_number=idx, column="as_of_date"))
+        key = (row.get("as_of_date", ""), row.get("carrier", ""))
+        if key in seen:
+            errors.append(f"duplicate publication exception key at line {idx}: {key}")
+        seen.add(key)
+        if key in normal_keys:
+            errors.append(f"publication exception line {idx} conflicts with normal prospective ledger row: {key}")
+        if row.get("carrier") != "w31":
+            errors.append(f"publication exception line {idx} must use carrier=w31, got {row.get('carrier')!r}")
+        if row.get("status") != "publication_gap":
+            errors.append(f"publication exception line {idx} has unexpected status={row.get('status')!r}")
+    return errors
+
+
+def _verify_private_vault_exception_attestation(
+    root: Path,
+    row: dict[str, str],
+    *,
+    ledger_row: dict[str, str],
+    line_number: int,
+) -> list[str]:
+    errors: list[str] = []
+    relpath = Path(row.get("attestation_path", ""))
+    path = root / relpath
+    if not path.is_file():
+        return [f"private-vault exception line {line_number} missing attestation: {relpath.as_posix()}"]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"private-vault exception line {line_number} invalid attestation json: {exc}"]
+    if not isinstance(payload, dict):
+        return [f"private-vault exception line {line_number} attestation is not an object: {relpath.as_posix()}"]
+    for column in ("as_of_date", "delivery_date", "carrier", "manifest_sha256"):
+        if str(payload.get(column) or "") != row.get(column, ""):
+            errors.append(f"private-vault exception line {line_number} attestation {column} mismatch: {relpath.as_posix()}")
+    expected_row_sha = _ledger_row_sha256(ledger_row)
+    if payload.get("public_ledger_row_sha256") != expected_row_sha:
+        errors.append(f"private-vault exception line {line_number} attestation ledger row hash mismatch: {relpath.as_posix()}")
+    if payload.get("signature_algorithm") != "openssh-signature-v1":
+        errors.append(f"private-vault exception line {line_number} attestation has unsupported signature_algorithm: {relpath.as_posix()}")
+    if payload.get("signature_namespace") != ATTESTATION_SIGNATURE_NAMESPACE:
+        errors.append(f"private-vault exception line {line_number} attestation has unexpected signature_namespace: {relpath.as_posix()}")
+    signature_error = _verify_ssh_attestation_signature(payload, allowed_signers_path=root / ATTESTATION_ALLOWED_SIGNERS)
+    if signature_error:
+        errors.append(f"private-vault exception line {line_number} attestation signature verification failed: {signature_error}")
+    return errors
+
+
+def _verify_private_vault_exceptions(
+    root: Path,
+    *,
+    ledger_rows: list[dict[str, str]],
+    append_only_base_ref: str | None,
+) -> list[str]:
+    rows, errors = _read_optional_csv_rows(root / PRIVATE_VAULT_EXCEPTIONS, PRIVATE_VAULT_EXCEPTION_COLUMNS)
+    if append_only_base_ref and (root / PRIVATE_VAULT_EXCEPTIONS).exists():
+        errors.extend(
+            _verify_append_only_csv(
+                root,
+                relpath=PRIVATE_VAULT_EXCEPTIONS,
+                columns=PRIVATE_VAULT_EXCEPTION_COLUMNS,
+                base_ref=append_only_base_ref,
+            )
+        )
+    ledger_by_key = {
+        (row.get("as_of_date", ""), row.get("delivery_date", ""), row.get("carrier", ""), row.get("manifest_sha256", "")): row
+        for row in ledger_rows
+        if row.get("manifest_sha256")
+    }
+    seen: set[tuple[str, str, str, str]] = set()
+    for idx, row in enumerate(rows, start=2):
+        for column in PRIVATE_VAULT_EXCEPTION_COLUMNS:
+            if not row.get(column, ""):
+                errors.append(f"{PRIVATE_VAULT_EXCEPTIONS.as_posix()} line {idx} missing {column}")
+        errors.extend(_validate_iso_date(row.get("as_of_date", ""), relpath=PRIVATE_VAULT_EXCEPTIONS, line_number=idx, column="as_of_date"))
+        errors.extend(_validate_iso_date(row.get("delivery_date", ""), relpath=PRIVATE_VAULT_EXCEPTIONS, line_number=idx, column="delivery_date"))
+        key = (
+            row.get("as_of_date", ""),
+            row.get("delivery_date", ""),
+            row.get("carrier", ""),
+            row.get("manifest_sha256", ""),
+        )
+        if key in seen:
+            errors.append(f"duplicate private-vault exception key at line {idx}: {key}")
+        seen.add(key)
+        ledger_row = ledger_by_key.get(key)
+        if ledger_row is None:
+            errors.append(f"private-vault exception line {idx} does not reference an existing daily ledger row")
+            continue
+        if row.get("carrier") != "w31":
+            errors.append(f"private-vault exception line {idx} must use carrier=w31, got {row.get('carrier')!r}")
+        if row.get("status") != "private_manifest_unrecoverable":
+            errors.append(f"private-vault exception line {idx} has unexpected status={row.get('status')!r}")
+        expected_attestation = _private_manifest_attestation_relpath(row)
+        if not expected_attestation or row.get("attestation_path", "") != expected_attestation.as_posix():
+            errors.append(
+                "private-vault exception line "
+                f"{idx} attestation_path must be {expected_attestation.as_posix() if expected_attestation else '<deterministic path unavailable>'}"
+            )
+        errors.extend(
+            _verify_private_vault_exception_attestation(
+                root,
+                row,
+                ledger_row=ledger_row,
+                line_number=idx,
+            )
+        )
+    return errors
+
+
 def _latest_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
     if not rows:
         return None
@@ -1366,12 +1554,22 @@ def _render_readme(summary: dict[str, object]) -> str:
             "- `hashes/timestamp_proofs.csv`: append-only timestamp proof ledger.",
             "- `hashes/opentimestamps/`: timestamp proof inputs and OpenTimestamps proof files.",
             "- `attestations/private_manifest/`: signed attestations that a public hash matched a private manifest.",
+            "- `releases/publication_exceptions.csv`: public gap ledger for dates where no normal prospective row is asserted.",
+            "- `releases/private_vault_exceptions.csv`: public exception ledger for missing private-vault artifacts backed by signed attestations.",
             "- `carrier/current.md`: current public carrier status.",
             "- `carrier/operational_log.md`: public-safe automation event log.",
             "- `methodology/safety_overlay.md`: public-safe explanation of standby safety overlays.",
             "- `reports/weekly/` and `reports/monthly/`: delayed aggregate reports once enough settled outcomes exist.",
             "- `samples/delayed_advisory_examples/`: approved long-delayed examples with aggregate counts and hashes only.",
             "- `methodology/`: public rules, versioning, risk metrics, exclusions, and disclaimers.",
+            "",
+            "## How To Read Rows",
+            "",
+            "Normal prospective rows in `hashes/daily_manifest_hashes.csv` are the performance-bearing public record: each one asserts that a pre-deadline private manifest existed, was hash-published, attested, and later became eligible for delayed outcome reporting.",
+            "",
+            "Exception rows in `releases/` are transparency records, not performance rows. A `publication_gap` records that no normal prospective row is asserted for that date. A `private_manifest_unrecoverable` row records that a public hash row remains public, but one restored private-vault artifact is unavailable and the public attestation is the surviving signed linkage.",
+            "",
+            "Early performance can be sparse. Outcome and report rows appear only after settlement data is available and public-safe aggregation checks pass; missing delayed outcome rows should not be read as live trading performance.",
             "",
             "## Verification",
             "",
@@ -1503,6 +1701,20 @@ def verify(
         )
     )
     errors.extend(_verify_attestations(root, ledger_rows))
+    errors.extend(
+        _verify_publication_exceptions(
+            root,
+            ledger_rows=ledger_rows,
+            append_only_base_ref=append_only_base_ref,
+        )
+    )
+    errors.extend(
+        _verify_private_vault_exceptions(
+            root,
+            ledger_rows=ledger_rows,
+            append_only_base_ref=append_only_base_ref,
+        )
+    )
     errors.extend(_verify_reports(root))
     errors.extend(_verify_samples(root, ledger_rows))
     errors.extend(_verify_status_docs(root))
