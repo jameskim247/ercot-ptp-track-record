@@ -1,0 +1,2 @@
+as_of_date,delivery_date,carrier,manifest_sha256,status,reason,evidence_policy,attestation_path,recorded_at_utc
+2026-06-01,2026-06-02,w31,8ae1e969584454065331e6a8ee2bb3354a3bf3dfca8bd176ad16610766adf5a0,private_manifest_unrecoverable,original private manifest file unavailable after vault restore,accepted only with matching signed public attestation,attestations/private_manifest/2026/06/2026-06-01_w31_8ae1e9695844.json,2026-06-07T08:15:52+00:00
