@@ -288,6 +288,27 @@ def _write_report_fixture(repo: Path, verifier) -> Path:
     return markdown_path
 
 
+def _assert_forbidden_public_paths(repo: Path, verifier, relpaths: tuple[str, ...]) -> bool:
+    for relpath in relpaths:
+        path = repo / relpath
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"private fixture\n")
+    errors = verifier.verify(repo)
+    missing = [
+        relpath
+        for relpath in relpaths
+        if not any("forbidden public artifact path" in error and relpath in error for error in errors)
+    ]
+    if missing:
+        print("private artifact paths should fail public verification:", file=sys.stderr)
+        for relpath in missing:
+            print(f"- missing error for {relpath}", file=sys.stderr)
+        for error in errors:
+            print(f"- observed: {error}", file=sys.stderr)
+        return False
+    return True
+
+
 def main() -> int:
     verifier = _load_verifier()
     with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
@@ -299,6 +320,23 @@ def main() -> int:
             print("terminal timestamp fixture should verify, got:", file=sys.stderr)
             for error in errors:
                 print(f"- {error}", file=sys.stderr)
+            return 1
+
+    with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:
+        repo = _copy_public_fixture(Path(tmp_raw))
+        if not _assert_forbidden_public_paths(
+            repo,
+            verifier,
+            (
+                "2026/06/01/w31/manifest.json",
+                "runtime/track_record/backups/vault_backup_20990101T000000Z.tar.gz",
+                "runtime/track_record/backups/vault_backup_20990101T000000Z.zip",
+                "reports/audits/outcome_join.csv",
+                "out/cc2/paper/logs/pipeline_2099-01-01.json",
+                "out/cc2/paper/signals/positions_2099-01-01.parquet",
+                "private_vault/2026/06/01/w31/manifest.json",
+            ),
+        ):
             return 1
 
     with tempfile.TemporaryDirectory(prefix="public-verifier-selftest-") as tmp_raw:

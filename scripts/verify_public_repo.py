@@ -120,6 +120,14 @@ PRIVATE_VAULT_EXCEPTION_COLUMNS = (
 )
 
 FORBIDDEN_PATH_PATTERNS = (
+    re.compile(r"(^|/)manifest\.json$", re.IGNORECASE),
+    re.compile(r"(^|/)vault_backup_[^/]*", re.IGNORECASE),
+    re.compile(r"\.(?:tar|tar\.gz|tgz|zip|gpg)$", re.IGNORECASE),
+    re.compile(r"\.parquet$", re.IGNORECASE),
+    re.compile(r"(^|/)outcome_join\.csv$", re.IGNORECASE),
+    re.compile(r"(^|/)pipeline_[^/]*\.json$", re.IGNORECASE),
+    re.compile(r"(^|/)runtime(/|$)", re.IGNORECASE),
+    re.compile(r"(^|/)private[_-]vault(/|$)", re.IGNORECASE),
     re.compile(r"(^|/)scored_signals_\d{4}-\d{2}-\d{2}\.(csv|json|parquet)$", re.IGNORECASE),
     re.compile(r"(^|/)positions_\d{4}-\d{2}-\d{2}\.(csv|json|parquet)$", re.IGNORECASE),
     re.compile(r"(^|/)book_delta_\d{4}-\d{2}-\d{2}\.(csv|json|parquet)$", re.IGNORECASE),
