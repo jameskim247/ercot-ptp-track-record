@@ -17,7 +17,7 @@ This repository does not publish live trade instructions, raw scored signals, mo
 - Valid rows: 4.
 - Invalid rows: 0.
 - Excluded rows: 0.
-- Backfill rows: 0.
+- Backfill rows: 4.
 - Latest as-of date: 2026-06-01.
 - Latest manifest SHA256: `8ae1e969584454065331e6a8ee2bb3354a3bf3dfca8bd176ad16610766adf5a0`.
 

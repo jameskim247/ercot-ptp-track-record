@@ -6,22 +6,6 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 
 | at_utc | as_of_date | carrier | state | details |
 |---|---|---|---|---|
-| 2026-05-27T14:45:12.168802+00:00 | 2026-05-27 | w31 | awaiting_canary |  |
-| 2026-05-27T14:45:12.169298+00:00 | 2026-05-27 | w31 | canary_checked | canary_status=OK |
-| 2026-05-27T14:45:12.184573+00:00 | 2026-05-27 | w31 | manifest_written | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d |
-| 2026-05-27T14:45:12.184964+00:00 | 2026-05-27 | w31 | timestamp_requested |  |
-| 2026-05-27T14:45:12.187125+00:00 | 2026-05-27 | w31 | public_hash_appended | valid_day_status=valid |
-| 2026-05-27T14:45:14.619160+00:00 | 2026-05-27 | w31 | public_repo_pushed |  |
-| 2026-05-27T14:45:14.619739+00:00 | 2026-05-27 | w31 | outcome_waiting |  |
-| 2026-05-27T18:06:26.696063+00:00 | 2026-05-27 | w31 | timestamp_proof_committed | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d; proof_path=hashes/opentimestamps/2026/05/2026-05-27_w31_70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d.ots; proof_relpath=hashes/opentimestamps/2026/05/2026-05-27_w31_70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d.ots |
-| 2026-05-28T12:45:16.126649+00:00 | 2026-05-28 | w31 | scheduled |  |
-| 2026-05-28T12:45:16.196400+00:00 | 2026-05-28 | w31 | paper_complete |  |
-| 2026-05-28T12:45:16.197234+00:00 | 2026-05-28 | w31 | awaiting_canary |  |
-| 2026-05-28T12:45:16.197667+00:00 | 2026-05-28 | w31 | canary_checked | canary_status=OK |
-| 2026-05-28T12:45:16.255415+00:00 | 2026-05-28 | w31 | manifest_written | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192 |
-| 2026-05-28T12:45:16.255996+00:00 | 2026-05-28 | w31 | timestamp_requested |  |
-| 2026-05-28T12:45:19.167930+00:00 | 2026-05-28 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/05/2026-05-28_w31_f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192.ots |
-| 2026-05-28T12:45:19.171048+00:00 | 2026-05-28 | w31 | public_hash_appended | valid_day_status=valid |
 | 2026-05-28T12:45:22.408796+00:00 | 2026-05-28 | w31 | public_repo_pushed |  |
 | 2026-05-28T12:45:22.413200+00:00 | 2026-05-28 | w31 | outcome_waiting |  |
 | 2026-05-29T12:45:09.801060+00:00 | 2026-05-29 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
@@ -56,3 +40,19 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-06-02T12:45:14.061334+00:00 | 2026-06-02 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
 | 2026-06-03T12:45:10.930412+00:00 | 2026-06-03 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
 | 2026-06-04T12:45:11.672703+00:00 | 2026-06-04 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
+| 2026-06-05T12:45:04.676523+00:00 | 2026-06-05 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
+| 2026-06-07T07:31:40.006559+00:00 | 2026-05-26 | w31 | prices_joined | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1; outcome_status=outcome_joined |
+| 2026-06-07T07:31:40.023901+00:00 | 2026-05-26 | w31 | missing_price_flags_written | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1; outcome_status=outcome_joined |
+| 2026-06-07T07:31:40.025743+00:00 | 2026-05-26 | w31 | pnl_computed | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1; outcome_status=outcome_joined |
+| 2026-06-07T07:31:40.028535+00:00 | 2026-05-26 | w31 | private_outcome_written | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1; outcome_status=outcome_joined |
+| 2026-06-07T07:31:40.031509+00:00 | 2026-05-26 | w31 | outcome_joined | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1; outcome_status=outcome_joined |
+| 2026-06-07T07:31:44.345753+00:00 | 2026-05-28 | w31 | prices_joined | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
+| 2026-06-07T07:31:44.347264+00:00 | 2026-05-28 | w31 | missing_price_flags_written | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
+| 2026-06-07T07:31:44.348236+00:00 | 2026-05-28 | w31 | pnl_computed | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
+| 2026-06-07T07:31:44.349187+00:00 | 2026-05-28 | w31 | private_outcome_written | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
+| 2026-06-07T07:31:44.351823+00:00 | 2026-05-28 | w31 | outcome_joined | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
+| 2026-06-07T07:31:47.917391+00:00 | 2026-05-27 | w31 | prices_joined | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d; outcome_status=outcome_joined |
+| 2026-06-07T07:31:47.924353+00:00 | 2026-05-27 | w31 | missing_price_flags_written | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d; outcome_status=outcome_joined |
+| 2026-06-07T07:31:47.926346+00:00 | 2026-05-27 | w31 | pnl_computed | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d; outcome_status=outcome_joined |
+| 2026-06-07T07:31:47.927708+00:00 | 2026-05-27 | w31 | private_outcome_written | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d; outcome_status=outcome_joined |
+| 2026-06-07T07:31:47.929593+00:00 | 2026-05-27 | w31 | outcome_joined | manifest_sha256=70845ac0b2ce331e3e5725f7272d50bdfda362f11b5485536e8e82371751742d; outcome_status=outcome_joined |
