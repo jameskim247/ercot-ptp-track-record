@@ -16,12 +16,12 @@ Mechanism framing: topology/market-structure driven selection with a standby wea
 
 ## Public Ledger Status
 
-- Prospective rows: 4
-- Valid rows: 4
+- Prospective rows: 5
+- Valid rows: 5
 - Invalid rows: 0
 - Excluded rows: 0
-- Latest as-of date: 2026-06-01
-- Latest delivery date: 2026-06-02
+- Latest as-of date: 2026-06-08
+- Latest delivery date: 2026-06-09
 - Latest valid-day status: valid
 - Latest timestamp status: opentimestamps_proof
-- Latest manifest SHA256: `8ae1e969584454065331e6a8ee2bb3354a3bf3dfca8bd176ad16610766adf5a0`
+- Latest manifest SHA256: `20a7be8fa35004db097c4a9b4469e7885927f2c2ce944cae62d6f752fb85b581`
