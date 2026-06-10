@@ -6,8 +6,6 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 
 | at_utc | as_of_date | carrier | state | details |
 |---|---|---|---|---|
-| 2026-06-01T13:15:12.850135+00:00 | 2026-05-28 | w31 | public_aggregate_written | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
-| 2026-06-01T13:15:12.850786+00:00 | 2026-05-28 | w31 | report_ready | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
 | 2026-06-02T12:45:14.061334+00:00 | 2026-06-02 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
 | 2026-06-03T12:45:10.930412+00:00 | 2026-06-03 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
 | 2026-06-04T12:45:11.672703+00:00 | 2026-06-04 | w31 | failed | alert_type=track_record_readiness_failure; failed_check=readiness; severity=error |
@@ -56,3 +54,5 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-06-10T12:45:05.171090+00:00 | 2026-06-10 | w31 | timestamp_requested |  |
 | 2026-06-10T12:45:07.638061+00:00 | 2026-06-10 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/06/2026-06-10_w31_fccd1b6bcf3d9c09b96c67c709569aab36b439c3c1f37c0d69e594df723ac0df.ots |
 | 2026-06-10T12:45:07.639362+00:00 | 2026-06-10 | w31 | public_hash_appended | valid_day_status=valid |
+| 2026-06-10T12:45:10.279425+00:00 | 2026-06-10 | w31 | public_repo_pushed |  |
+| 2026-06-10T12:45:10.280093+00:00 | 2026-06-10 | w31 | outcome_waiting |  |
