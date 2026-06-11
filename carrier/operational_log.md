@@ -6,8 +6,6 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 
 | at_utc | as_of_date | carrier | state | details |
 |---|---|---|---|---|
-| 2026-06-07T07:31:40.031509+00:00 | 2026-05-26 | w31 | outcome_joined | manifest_sha256=cb2a002b5043240b26f911480a5c1aa7f7812430d9503c634be0f339e88da6a1; outcome_status=outcome_joined |
-| 2026-06-07T07:31:44.345753+00:00 | 2026-05-28 | w31 | prices_joined | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
 | 2026-06-07T07:31:44.347264+00:00 | 2026-05-28 | w31 | missing_price_flags_written | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
 | 2026-06-07T07:31:44.348236+00:00 | 2026-05-28 | w31 | pnl_computed | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
 | 2026-06-07T07:31:44.349187+00:00 | 2026-05-28 | w31 | private_outcome_written | manifest_sha256=f28f3a05944991c40c4554bcb2983996b1cfe17580f55408eeb3fb7bd2943192; outcome_status=outcome_joined |
@@ -56,3 +54,5 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-06-11T12:45:09.373318+00:00 | 2026-06-11 | w31 | timestamp_requested |  |
 | 2026-06-11T12:45:12.930305+00:00 | 2026-06-11 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/06/2026-06-11_w31_5b339003a7f28ae46c711654315a4a9d6f6ada7f74a1ebb2df23f811c8a52136.ots |
 | 2026-06-11T12:45:12.931402+00:00 | 2026-06-11 | w31 | public_hash_appended | valid_day_status=valid |
+| 2026-06-11T12:45:16.677875+00:00 | 2026-06-11 | w31 | public_repo_pushed |  |
+| 2026-06-11T12:45:16.678527+00:00 | 2026-06-11 | w31 | outcome_waiting |  |
