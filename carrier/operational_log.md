@@ -6,14 +6,6 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 
 | at_utc | as_of_date | carrier | state | details |
 |---|---|---|---|---|
-| 2026-06-09T12:45:08.561145+00:00 | 2026-06-09 | w31 | timestamp_requested |  |
-| 2026-06-09T12:45:11.165038+00:00 | 2026-06-09 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/06/2026-06-09_w31_1ae2b99b103ad2fb129ed910b11bf177003d5e4aff82a81d24f29c0941260190.ots |
-| 2026-06-09T12:45:11.166626+00:00 | 2026-06-09 | w31 | public_hash_appended | valid_day_status=valid |
-| 2026-06-09T12:45:14.059177+00:00 | 2026-06-09 | w31 | public_repo_pushed |  |
-| 2026-06-09T12:45:14.060670+00:00 | 2026-06-09 | w31 | outcome_waiting |  |
-| 2026-06-09T13:15:03.139869+00:00 | 2026-06-01 | w31 | outcome_unrecoverable | manifest_sha256=8ae1e969584454065331e6a8ee2bb3354a3bf3dfca8bd176ad16610766adf5a0; outcome_status=private_manifest_unrecoverable |
-| 2026-06-10T12:45:05.121396+00:00 | 2026-06-10 | w31 | scheduled |  |
-| 2026-06-10T12:45:05.146681+00:00 | 2026-06-10 | w31 | paper_complete |  |
 | 2026-06-10T12:45:05.147193+00:00 | 2026-06-10 | w31 | awaiting_canary |  |
 | 2026-06-10T12:45:05.147543+00:00 | 2026-06-10 | w31 | canary_checked | canary_status=OK |
 | 2026-06-10T12:45:05.170525+00:00 | 2026-06-10 | w31 | manifest_written | manifest_sha256=fccd1b6bcf3d9c09b96c67c709569aab36b439c3c1f37c0d69e594df723ac0df |
@@ -56,3 +48,11 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-06-13T12:45:07.034928+00:00 | 2026-06-13 | w31 | timestamp_requested |  |
 | 2026-06-13T12:45:08.883351+00:00 | 2026-06-13 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/06/2026-06-13_w31_bd124724449b3bc722805ea0c6b0e550e2e6f7fa951c9778da13c6c5af8dd289.ots |
 | 2026-06-13T12:45:08.884720+00:00 | 2026-06-13 | w31 | public_hash_appended | valid_day_status=valid |
+| 2026-06-13T12:45:11.278921+00:00 | 2026-06-13 | w31 | public_repo_pushed |  |
+| 2026-06-13T12:45:11.279336+00:00 | 2026-06-13 | w31 | outcome_waiting |  |
+| 2026-06-13T13:15:03.559984+00:00 | 2026-06-09 | w31 | prices_joined | manifest_sha256=1ae2b99b103ad2fb129ed910b11bf177003d5e4aff82a81d24f29c0941260190; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-13T13:15:03.560997+00:00 | 2026-06-09 | w31 | missing_price_flags_written | manifest_sha256=1ae2b99b103ad2fb129ed910b11bf177003d5e4aff82a81d24f29c0941260190; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-13T13:15:03.561447+00:00 | 2026-06-09 | w31 | pnl_computed | manifest_sha256=1ae2b99b103ad2fb129ed910b11bf177003d5e4aff82a81d24f29c0941260190; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-13T13:15:03.561862+00:00 | 2026-06-09 | w31 | private_outcome_written | manifest_sha256=1ae2b99b103ad2fb129ed910b11bf177003d5e4aff82a81d24f29c0941260190; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-13T13:15:03.562433+00:00 | 2026-06-09 | w31 | public_aggregate_written | manifest_sha256=1ae2b99b103ad2fb129ed910b11bf177003d5e4aff82a81d24f29c0941260190; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-13T13:15:03.563009+00:00 | 2026-06-09 | w31 | report_ready | manifest_sha256=1ae2b99b103ad2fb129ed910b11bf177003d5e4aff82a81d24f29c0941260190; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
