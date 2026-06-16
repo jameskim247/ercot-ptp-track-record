@@ -20,6 +20,7 @@ This repository does not publish live trade instructions, raw scored signals, mo
 - Backfill rows: 4.
 - Latest as-of date: 2026-06-16.
 - Latest manifest SHA256: `61efe1ed75672614fdfbcf6146cb3f2298e0a0f7d6b8860b5ec40c9d41dacbdd`.
+- Latest weekly report: `reports/weekly/2026-06-09_to_2026-06-13.md`.
 
 ## Public Artifacts
 
