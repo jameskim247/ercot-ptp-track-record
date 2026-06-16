@@ -258,9 +258,18 @@ def _write_report_fixture(repo: Path, verifier) -> Path:
     }
     outcome_path = repo / verifier.OUTCOME_SUMMARIES
     outcome_path.parent.mkdir(parents=True, exist_ok=True)
+    existing_rows = _read_csv(outcome_path) if outcome_path.is_file() else []
+    fixture_key = (row["as_of_date"], row["delivery_date"], row["carrier"], row["manifest_sha256"])
+    existing_rows = [
+        existing
+        for existing in existing_rows
+        if (existing["as_of_date"], existing["delivery_date"], existing["carrier"], existing["manifest_sha256"]) != fixture_key
+    ]
     with outcome_path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=verifier.OUTCOME_SUMMARY_COLUMNS)
         writer.writeheader()
+        for existing in existing_rows:
+            writer.writerow({name: existing.get(name, "") for name in verifier.OUTCOME_SUMMARY_COLUMNS})
         writer.writerow(row)
 
     report_dir = repo / "reports" / "weekly"
