@@ -13,13 +13,13 @@ This repository does not publish live trade instructions, raw scored signals, mo
 - Public production process: active.
 - Carrier code: W31 (opaque audit identifier).
 - Methodology version: `m2026.05.26.v1`.
-- Prospective live rows: 13.
-- Valid rows: 13.
+- Prospective live rows: 14.
+- Valid rows: 14.
 - Invalid rows: 0.
 - Excluded rows: 0.
 - Backfill rows: 4.
-- Latest as-of date: 2026-06-16.
-- Latest manifest SHA256: `61efe1ed75672614fdfbcf6146cb3f2298e0a0f7d6b8860b5ec40c9d41dacbdd`.
+- Latest as-of date: 2026-06-17.
+- Latest manifest SHA256: `908fe924bdf579645bd4571bebf07b22d16194b35f59a9420c783904449a9909`.
 - Latest weekly report: `reports/weekly/2026-06-09_to_2026-06-13.md`.
 
 ## Public Artifacts
