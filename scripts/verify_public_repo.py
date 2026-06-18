@@ -10,7 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 
@@ -443,9 +443,21 @@ def _track_record_valid_day_count(root: Path, *, report_date: date, min_delay_da
             continue
         if ledger.get("valid_day_status") != "valid" or row.get("outcome_status") != "outcome_joined":
             continue
-        if date.fromisoformat(row["delivery_date"]) <= latest_allowed:
+        if date.fromisoformat(row["delivery_date"]) <= latest_allowed and _outcome_available_by_report_date(
+            row, report_date=report_date
+        ):
             keys.add((row["as_of_date"], row["delivery_date"], row["manifest_sha256"]))
     return len(keys)
+
+
+def _outcome_available_by_report_date(row: dict[str, str], *, report_date: date) -> bool:
+    raw = str(row.get("ercot_data_fetch_time_utc") or "").strip()
+    if not raw:
+        return True
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).date() <= report_date
+    except ValueError:
+        return False
 
 
 def _daily_distribution(rows: list[dict[str, str]]) -> dict[str, object]:
