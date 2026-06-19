@@ -6,14 +6,6 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 
 | at_utc | as_of_date | carrier | state | details |
 |---|---|---|---|---|
-| 2026-06-16T12:45:12.336378+00:00 | 2026-06-16 | w31 | timestamp_requested |  |
-| 2026-06-16T12:45:15.861297+00:00 | 2026-06-16 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/06/2026-06-16_w31_61efe1ed75672614fdfbcf6146cb3f2298e0a0f7d6b8860b5ec40c9d41dacbdd.ots |
-| 2026-06-16T12:45:15.863960+00:00 | 2026-06-16 | w31 | public_hash_appended | valid_day_status=valid |
-| 2026-06-16T12:45:19.809718+00:00 | 2026-06-16 | w31 | public_repo_pushed |  |
-| 2026-06-16T12:45:19.810542+00:00 | 2026-06-16 | w31 | outcome_waiting |  |
-| 2026-06-16T13:15:04.107193+00:00 | 2026-06-12 | w31 | prices_joined | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
-| 2026-06-16T13:15:04.109335+00:00 | 2026-06-12 | w31 | missing_price_flags_written | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
-| 2026-06-16T13:15:04.110131+00:00 | 2026-06-12 | w31 | pnl_computed | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
 | 2026-06-16T13:15:04.110697+00:00 | 2026-06-12 | w31 | private_outcome_written | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
 | 2026-06-16T13:15:04.111234+00:00 | 2026-06-12 | w31 | public_aggregate_written | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
 | 2026-06-16T13:15:04.111753+00:00 | 2026-06-12 | w31 | report_ready | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
@@ -56,3 +48,11 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-06-18T19:10:24.982623+00:00 | 2026-06-14 | w31 | private_outcome_written | manifest_sha256=2afb6146c38c1b4518f75c0334ee5e3e7fbf8588427e9d9889e159aaa9924ef1; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
 | 2026-06-18T19:10:24.983548+00:00 | 2026-06-14 | w31 | public_aggregate_written | manifest_sha256=2afb6146c38c1b4518f75c0334ee5e3e7fbf8588427e9d9889e159aaa9924ef1; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
 | 2026-06-18T19:10:24.984397+00:00 | 2026-06-14 | w31 | report_ready | manifest_sha256=2afb6146c38c1b4518f75c0334ee5e3e7fbf8588427e9d9889e159aaa9924ef1; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-19T12:45:14.613475+00:00 | 2026-06-19 | w31 | scheduled |  |
+| 2026-06-19T12:45:14.741840+00:00 | 2026-06-19 | w31 | paper_complete |  |
+| 2026-06-19T12:45:14.742856+00:00 | 2026-06-19 | w31 | awaiting_canary |  |
+| 2026-06-19T12:45:14.743849+00:00 | 2026-06-19 | w31 | canary_checked | canary_status=OK |
+| 2026-06-19T12:45:14.877997+00:00 | 2026-06-19 | w31 | manifest_written | manifest_sha256=73b6494ae6f72a950ee0365c6be4e7abbc099c01edf90d74ea260359060da03b |
+| 2026-06-19T12:45:14.879752+00:00 | 2026-06-19 | w31 | timestamp_requested |  |
+| 2026-06-19T12:45:18.976540+00:00 | 2026-06-19 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/06/2026-06-19_w31_73b6494ae6f72a950ee0365c6be4e7abbc099c01edf90d74ea260359060da03b.ots |
+| 2026-06-19T12:45:18.977879+00:00 | 2026-06-19 | w31 | public_hash_appended | valid_day_status=valid |
