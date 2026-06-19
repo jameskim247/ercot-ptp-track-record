@@ -6,14 +6,6 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 
 | at_utc | as_of_date | carrier | state | details |
 |---|---|---|---|---|
-| 2026-06-16T13:15:04.110697+00:00 | 2026-06-12 | w31 | private_outcome_written | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
-| 2026-06-16T13:15:04.111234+00:00 | 2026-06-12 | w31 | public_aggregate_written | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
-| 2026-06-16T13:15:04.111753+00:00 | 2026-06-12 | w31 | report_ready | manifest_sha256=3ee8f5015d55a46061cd7329e3e7f2c4563cdb3af4446a94695398df6c66974a; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
-| 2026-06-16T13:25:03.138413+00:00 | 2026-06-08 | w31 | reported | report_kind=weekly; report_path=reports/weekly/2026-06-09_to_2026-06-13.md; rows_counted_sha256=b5b1b7586bb3f3d415ec75ed5c2f3dda31157b867458b044fae2b54d86973562 |
-| 2026-06-16T13:25:03.139266+00:00 | 2026-06-09 | w31 | reported | report_kind=weekly; report_path=reports/weekly/2026-06-09_to_2026-06-13.md; rows_counted_sha256=b5b1b7586bb3f3d415ec75ed5c2f3dda31157b867458b044fae2b54d86973562 |
-| 2026-06-16T13:25:03.139992+00:00 | 2026-06-10 | w31 | reported | report_kind=weekly; report_path=reports/weekly/2026-06-09_to_2026-06-13.md; rows_counted_sha256=b5b1b7586bb3f3d415ec75ed5c2f3dda31157b867458b044fae2b54d86973562 |
-| 2026-06-16T13:25:03.141293+00:00 | 2026-06-11 | w31 | reported | report_kind=weekly; report_path=reports/weekly/2026-06-09_to_2026-06-13.md; rows_counted_sha256=b5b1b7586bb3f3d415ec75ed5c2f3dda31157b867458b044fae2b54d86973562 |
-| 2026-06-16T13:25:03.142178+00:00 | 2026-06-12 | w31 | reported | report_kind=weekly; report_path=reports/weekly/2026-06-09_to_2026-06-13.md; rows_counted_sha256=b5b1b7586bb3f3d415ec75ed5c2f3dda31157b867458b044fae2b54d86973562 |
 | 2026-06-17T12:45:09.139801+00:00 | 2026-06-17 | w31 | scheduled |  |
 | 2026-06-17T12:45:09.199951+00:00 | 2026-06-17 | w31 | paper_complete |  |
 | 2026-06-17T12:45:09.200653+00:00 | 2026-06-17 | w31 | awaiting_canary |  |
@@ -56,3 +48,11 @@ Public-safe automation state transitions are generated here. Private paths, raw 
 | 2026-06-19T12:45:14.879752+00:00 | 2026-06-19 | w31 | timestamp_requested |  |
 | 2026-06-19T12:45:18.976540+00:00 | 2026-06-19 | w31 | timestamp_proof_committed | proof_path=hashes/opentimestamps/2026/06/2026-06-19_w31_73b6494ae6f72a950ee0365c6be4e7abbc099c01edf90d74ea260359060da03b.ots |
 | 2026-06-19T12:45:18.977879+00:00 | 2026-06-19 | w31 | public_hash_appended | valid_day_status=valid |
+| 2026-06-19T12:45:23.826731+00:00 | 2026-06-19 | w31 | public_repo_pushed |  |
+| 2026-06-19T12:45:23.827321+00:00 | 2026-06-19 | w31 | outcome_waiting |  |
+| 2026-06-19T13:15:03.459088+00:00 | 2026-06-15 | w31 | prices_joined | manifest_sha256=63001d6f3dcab26ae3e44ef7911dcaae3ceeb17c038d74f3325f5ca5afa0e7c2; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-19T13:15:03.460297+00:00 | 2026-06-15 | w31 | missing_price_flags_written | manifest_sha256=63001d6f3dcab26ae3e44ef7911dcaae3ceeb17c038d74f3325f5ca5afa0e7c2; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-19T13:15:03.460818+00:00 | 2026-06-15 | w31 | pnl_computed | manifest_sha256=63001d6f3dcab26ae3e44ef7911dcaae3ceeb17c038d74f3325f5ca5afa0e7c2; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-19T13:15:03.461208+00:00 | 2026-06-15 | w31 | private_outcome_written | manifest_sha256=63001d6f3dcab26ae3e44ef7911dcaae3ceeb17c038d74f3325f5ca5afa0e7c2; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-19T13:15:03.461612+00:00 | 2026-06-15 | w31 | public_aggregate_written | manifest_sha256=63001d6f3dcab26ae3e44ef7911dcaae3ceeb17c038d74f3325f5ca5afa0e7c2; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
+| 2026-06-19T13:15:03.462069+00:00 | 2026-06-15 | w31 | report_ready | manifest_sha256=63001d6f3dcab26ae3e44ef7911dcaae3ceeb17c038d74f3325f5ca5afa0e7c2; outcome_status=outcome_joined; public_summary_relpath=reports/audits/daily_outcome_summaries.csv |
