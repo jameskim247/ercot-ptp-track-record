@@ -703,19 +703,33 @@ def _verify_report_markdown_regenerates(
     kind = markdown_path.parent.name
     if kind not in {"weekly", "monthly"}:
         return [f"report has unsupported report kind path: {rel}"]
-    expected = _render_report_markdown(
-        _report_summary(
-            root,
-            kind=kind,
-            rows=report_rows,
-            start_date=start_date,
-            end_date=end_date,
-            report_date=report_date,
-            min_delay_days=min_delay_days,
-        ),
-        report_rows,
+    summary = _report_summary(
+        root,
+        kind=kind,
+        rows=report_rows,
+        start_date=start_date,
+        end_date=end_date,
+        report_date=report_date,
+        min_delay_days=min_delay_days,
     )
-    return [] if text == expected else [f"report markdown does not match deterministic regeneration: {rel}"]
+    expected = _render_report_markdown(summary, report_rows)
+    if text == expected:
+        return []
+    # The "Settlement-complete valid days in full track record" count is a full-record
+    # total that only grows as later outcomes settle, so a report generated earlier may
+    # legitimately show a value <= the current recomputation. Tolerate that single line
+    # when committed <= recomputed; every other line, and an inflated count, still fails.
+    recomputed = int(summary["track_record_valid_day_count"])
+    committed = _markdown_match(text, r"^- Settlement-complete valid days in full track record: (\d+)\s*$")
+    if committed and int(committed) <= recomputed:
+        reconciled = expected.replace(
+            f"- Settlement-complete valid days in full track record: {recomputed}",
+            f"- Settlement-complete valid days in full track record: {committed}",
+            1,
+        )
+        if text == reconciled:
+            return []
+    return [f"report markdown does not match deterministic regeneration: {rel}"]
 
 
 def _markdown_match(text: str, pattern: str) -> str:
