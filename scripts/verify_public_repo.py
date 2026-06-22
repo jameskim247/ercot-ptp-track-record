@@ -83,6 +83,13 @@ ATTESTATION_ROOT = Path("attestations/private_manifest")
 ATTESTATION_ALLOWED_SIGNERS = Path("attestations/allowed_signers")
 ATTESTATION_SIGNATURE_NAMESPACE = "ercot-ptp-track-record-manifest-v1"
 PUBLIC_SAMPLE_ROOT = Path("samples/delayed_advisory_examples")
+SUPERSEDED_REPORTS = Path("releases/superseded_reports.csv")
+SUPERSEDED_REPORTS_COLUMNS = (
+    "superseded_report",
+    "superseded_by_report",
+    "reason",
+    "recorded_at_utc",
+)
 
 TIMESTAMP_PROOF_COLUMNS = (
     "as_of_date",
@@ -1327,6 +1334,7 @@ def _verify_reports(root: Path, *, min_delay_days: int = 2) -> list[str]:
                 errors.append(f"report missing companion csv: {markdown_path.with_suffix('.csv').relative_to(root).as_posix()}")
             else:
                 errors.extend(_verify_report_rows(root, markdown_path, text, min_delay_days=min_delay_days))
+    errors.extend(_verify_no_active_weekly_overlap(root))
     return errors
 
 
@@ -1543,12 +1551,80 @@ def _latest_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
     return sorted(rows, key=lambda row: (row.get("as_of_date", ""), row.get("delivery_date", ""), row.get("manifest_sha256", "")))[-1]
 
 
+def _superseded_report_relpaths(root: Path) -> set[str]:
+    rows = _read_csv_rows_optional(root / SUPERSEDED_REPORTS, SUPERSEDED_REPORTS_COLUMNS)
+    return {row["superseded_report"].strip() for row in rows if row.get("superseded_report", "").strip()}
+
+
+def _report_period_end(markdown_path: Path) -> date:
+    stem = markdown_path.stem
+    if "_to_" in stem:  # weekly: YYYY-MM-DD_to_YYYY-MM-DD
+        try:
+            return date.fromisoformat(stem.split("_to_")[1])
+        except ValueError:
+            return date.min
+    try:  # monthly: YYYY-MM -> last day of that month
+        year_str, month_str = stem.split("-")
+        first = date(int(year_str), int(month_str), 1)
+        next_first = date(first.year + first.month // 12, first.month % 12 + 1, 1)
+        return next_first - timedelta(days=1)
+    except (ValueError, IndexError):
+        return date.min
+
+
+def _weekly_period_from_stem(stem: str) -> tuple[date, date] | None:
+    if "_to_" not in stem:
+        return None
+    try:
+        start_str, end_str = stem.split("_to_")
+        return date.fromisoformat(start_str), date.fromisoformat(end_str)
+    except ValueError:
+        return None
+
+
+def _verify_no_active_weekly_overlap(root: Path) -> list[str]:
+    report_root = root / "reports" / "weekly"
+    if not report_root.exists():
+        return []
+    superseded = _superseded_report_relpaths(root)
+    periods: list[tuple[date, date, str]] = []
+    for path in report_root.glob("*.md"):
+        if path.name == "README.md":
+            continue
+        rel = path.relative_to(root).as_posix()
+        if rel in superseded:
+            continue
+        period = _weekly_period_from_stem(path.stem)
+        if period is not None:
+            periods.append((period[0], period[1], rel))
+    periods.sort()
+    errors: list[str] = []
+    for i in range(len(periods)):
+        a_start, a_end, a_rel = periods[i]
+        for j in range(i + 1, len(periods)):
+            b_start, b_end, b_rel = periods[j]
+            if b_start <= a_end and a_start <= b_end:
+                errors.append(
+                    "overlapping active weekly reports: "
+                    f"{a_rel} and {b_rel} (neither recorded in {SUPERSEDED_REPORTS.as_posix()})"
+                )
+    return errors
+
+
 def _latest_report(root: Path, kind: str) -> str:
     report_root = root / "reports" / kind
     if not report_root.exists():
         return ""
-    reports = sorted(path for path in report_root.glob("*.md") if path.name != "README.md")
-    return reports[-1].relative_to(root).as_posix() if reports else ""
+    superseded = _superseded_report_relpaths(root)
+    candidates = [
+        path
+        for path in report_root.glob("*.md")
+        if path.name != "README.md" and path.relative_to(root).as_posix() not in superseded
+    ]
+    if not candidates:
+        return ""
+    latest = max(candidates, key=lambda path: (_report_period_end(path), path.name))
+    return latest.relative_to(root).as_posix()
 
 
 def _timestamp_status_by_manifest(root: Path) -> dict[str, str]:

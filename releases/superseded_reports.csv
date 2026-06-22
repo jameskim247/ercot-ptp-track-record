@@ -1,0 +1,2 @@
+superseded_report,superseded_by_report,reason,recorded_at_utc
+reports/weekly/2026-06-09_to_2026-06-13.md,reports/weekly/2026-06-08_to_2026-06-14.md,Tue-Sat partial-period window superseded by the canonical Monday-Sunday calendar week (adds the omitted 2026-06-14); the five overlapping delivery days 2026-06-09..2026-06-13 are identical,2026-06-22T12:21:56Z
