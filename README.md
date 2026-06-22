@@ -17,7 +17,7 @@ This repository does not publish live trade instructions, raw scored signals, mo
 - Valid rows: 18.
 - Invalid rows: 0.
 - Excluded rows: 0.
-- Backfill rows: 4.
+- Backfill rows: 5.
 - Latest as-of date: 2026-06-21.
 - Latest manifest SHA256: `b9fb6fc091bd3b301c207b473cdd811b50c4abfecb839f471adc6e9c7cd08953`.
 - Latest weekly report: `reports/weekly/2026-06-09_to_2026-06-13.md`.
@@ -25,7 +25,7 @@ This repository does not publish live trade instructions, raw scored signals, mo
 ## Public Artifacts
 
 - `hashes/daily_manifest_hashes.csv`: prospective public manifest hash ledger.
-- `hashes/backfill_manifest_hashes.csv`: historical/backfill hash ledger, never counted in prospective reports.
+- `hashes/backfill_manifest_hashes.csv`: historical/backfill hash ledger. Backfill rows are excluded from the prospective-only series, but explicitly recovery-marked rows may be counted in recovery-inclusive reports.
 - `hashes/timestamp_proofs.csv`: append-only timestamp proof ledger.
 - `hashes/opentimestamps/`: timestamp proof inputs and OpenTimestamps proof files.
 - `attestations/private_manifest/`: signed attestations that a public hash matched a private manifest.
@@ -40,7 +40,9 @@ This repository does not publish live trade instructions, raw scored signals, mo
 
 ## How To Read Rows
 
-Normal prospective rows in `hashes/daily_manifest_hashes.csv` are the performance-bearing public record: each one asserts that a pre-deadline private manifest existed, was hash-published, attested, and later became eligible for delayed outcome reporting.
+Normal prospective rows in `hashes/daily_manifest_hashes.csv` are the primary performance-bearing public record: each one asserts that a pre-deadline private manifest existed, was hash-published, attested, and later became eligible for delayed outcome reporting.
+
+Recovery-counted rows carry an `outcome_methodology_version` with `+recovery-`. They may reference `hashes/backfill_manifest_hashes.csv` only under the disclosed recovery methodology, and reports that include them must render a `## Recovery-Included Outcomes` section with prospective-only and recovery-inclusive totals.
 
 Exception rows in `releases/` are transparency records, not performance rows. A `publication_gap` records that no normal prospective row is asserted for that date. A `private_manifest_unrecoverable` row records that a public hash row remains public, but one restored private-vault artifact is unavailable and the public attestation is the surviving signed linkage.
 

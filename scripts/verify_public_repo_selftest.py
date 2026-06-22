@@ -468,7 +468,7 @@ def main() -> int:
             writer.writeheader()
             writer.writerows(rows)
         errors = verifier.verify(repo)
-        if not any("references non-prospective ledger row" in error for error in errors):
+        if not any("references backfill ledger row without recovery methodology marker" in error for error in errors):
             print("public outcome summary referencing backfill ledger row should fail", file=sys.stderr)
             for error in errors:
                 print(f"- {error}", file=sys.stderr)

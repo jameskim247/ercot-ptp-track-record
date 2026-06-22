@@ -23,7 +23,7 @@ python3 scripts/verify_public_repo.py . --append-only-base-ref origin/main
 
 ## Verify Backfill Separation
 
-Backfill rows belong only in `hashes/backfill_manifest_hashes.csv`. That file is header-only by default and should be populated only for explicitly labeled historical evidence with clean timestamp provenance. Buyer-facing prospective reports must not count backfill rows.
+Backfill rows belong only in `hashes/backfill_manifest_hashes.csv`. Buyer-facing prospective-only reports must not count backfill rows. A backfill row may count in a recovery-inclusive report only when the linked outcome row carries an `outcome_methodology_version` containing `+recovery-`, and the report must render a `## Recovery-Included Outcomes` disclosure.
 
 ## Verify Exception Ledgers
 
@@ -71,11 +71,11 @@ The verifier checks that each attestation uses an OpenSSH signature, verifies ag
 
 ## Verify Outcome And Report Linkage
 
-The public outcome summary, when present, must reference an existing public ledger `manifest_sha256`, and that ledger row must be `prospective`, `valid`, and use the current public carrier code. It must include `rows_counted_sha256`, include the private outcome hash, and pin the ERCOT data snapshot hash once settlement data is joined.
+The public outcome summary, when present, must reference an existing `manifest_sha256` from the prospective daily ledger or the backfill ledger. Prospective rows must be `valid` and use the current public carrier code. Backfill rows may back outcomes only when the outcome is recovery-marked with `+recovery-`; unmarked backfill outcomes must fail verification. Each outcome row must include `rows_counted_sha256`, include the private outcome hash, and pin the ERCOT data snapshot hash once settlement data is joined.
 
 Generated weekly and monthly reports must include a generated-file header, a companion CSV, `Rows counted SHA256`, and the methodology version set used for the covered period.
 
-Early performance can be sparse. Outcome summaries and weekly/monthly reports are delayed public aggregates; exception rows and unsettled days are not performance rows.
+Early performance can be sparse. Outcome summaries and weekly/monthly reports are delayed public aggregates; exception rows and unsettled days are not performance rows. Recovery-inclusive rows are performance rows only when marked and disclosed under the recovery methodology.
 
 ## Verify The Privacy Boundary
 

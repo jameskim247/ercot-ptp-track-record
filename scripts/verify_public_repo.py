@@ -75,6 +75,7 @@ DAILY_LEDGER = Path("hashes/daily_manifest_hashes.csv")
 BACKFILL_LEDGER = Path("hashes/backfill_manifest_hashes.csv")
 TIMESTAMP_PROOFS = Path("hashes/timestamp_proofs.csv")
 OUTCOME_SUMMARIES = Path("reports/audits/daily_outcome_summaries.csv")
+RECOVERY_METHODOLOGY_TOKEN = "+recovery-"
 PUBLICATION_EXCEPTIONS = Path("releases/publication_exceptions.csv")
 PRIVATE_VAULT_EXCEPTIONS = Path("releases/private_vault_exceptions.csv")
 CORRECTIONS_ROOT = Path("corrections")
@@ -529,7 +530,20 @@ def _report_summary(
         report_date=report_date,
         min_delay_days=min_delay_days,
     )
-    ledger_summary["unsettled_or_missing_valid_outcomes"] = max(int(ledger_summary["valid_day_count"]) - len(rows), 0)
+    recovery_rows = [row for row in rows if _is_recovery_outcome(row.get("outcome_methodology_version"))]
+    recovery_days = len(recovery_rows)
+    prospective_days = len(rows) - recovery_days
+    recovery_pnl = round(float(sum(_to_float(row, "realized_filled_pnl") for row in recovery_rows)), 6) if recovery_days else 0.0
+    prospective_pnl = round(
+        float(sum(_to_float(row, "realized_filled_pnl") for row in rows if not _is_recovery_outcome(row.get("outcome_methodology_version")))),
+        6,
+    )
+    recovery_versions = (
+        sorted({row["outcome_methodology_version"] for row in recovery_rows if row.get("outcome_methodology_version")})
+        if recovery_days
+        else []
+    )
+    ledger_summary["unsettled_or_missing_valid_outcomes"] = max(int(ledger_summary["valid_day_count"]) - prospective_days, 0)
     position_count = sum(_to_float(row, "position_count") for row in rows)
     filled_position_count = sum(_to_float(row, "filled_position_count") for row in rows)
     hit_values = [_to_float(row, "hit_rate") for row in rows if row.get("hit_rate", "") != ""]
@@ -542,6 +556,11 @@ def _report_summary(
         "methodology_versions": _methodology_versions(rows),
         "methodology_segments": _methodology_segments(rows),
         "days_counted": len(rows),
+        "prospective_days_counted": prospective_days,
+        "prospective_realized_filled_pnl": prospective_pnl,
+        "recovery_days_counted": recovery_days,
+        "recovery_realized_filled_pnl": recovery_pnl,
+        "recovery_outcome_methodology_versions": recovery_versions,
         "track_record_valid_day_count": _track_record_valid_day_count(
             root,
             report_date=report_date,
@@ -566,6 +585,9 @@ def _report_summary(
 
 
 def _render_report_markdown(summary: dict[str, object], rows: list[dict[str, str]]) -> str:
+    def metric_text(value: object) -> object:
+        return "n/a" if value == "" else value
+
     methodology_versions = ", ".join(f"`{version}`" for version in summary["methodology_versions"])
     lines = [
         GENERATED_HEADER,
@@ -605,10 +627,29 @@ def _render_report_markdown(summary: dict[str, object], rows: list[dict[str, str
         f"- Best day: {summary['best_day']} ({summary['best_day_pnl']})",
         f"- Worst day: {summary['worst_day']} ({summary['worst_day_pnl']})",
         f"- Max drawdown: {summary['max_drawdown']}",
-        f"- Annualized Sharpe: {summary['annualized_sharpe']}",
-        f"- Annualized Sortino: {summary['annualized_sortino']}",
+        f"- Annualized Sharpe: {metric_text(summary['annualized_sharpe'])}",
+        f"- Annualized Sortino: {metric_text(summary['annualized_sortino'])}",
         "",
     ]
+    if summary.get("recovery_days_counted", 0):
+        recovery_versions = ", ".join(
+            f"`{version}`" for version in summary.get("recovery_outcome_methodology_versions", [])
+        )
+        lines.extend(
+            [
+                "## Recovery-Included Outcomes",
+                "",
+                "These outcomes were settled late after the 2026-05-29 to 2026-06-05 outcome-join outage and "
+                "are counted in the totals above. They are backfill/recovery rows, not normal prospective rows.",
+                "",
+                f"- Recovery days counted: {summary['recovery_days_counted']}",
+                f"- Recovery realized filled PnL: {summary['recovery_realized_filled_pnl']}",
+                f"- Prospective-only days counted: {summary['prospective_days_counted']}",
+                f"- Prospective-only realized filled PnL: {summary['prospective_realized_filled_pnl']}",
+                f"- Recovery methodology versions: {recovery_versions}",
+                "",
+            ]
+        )
     segments = summary["methodology_segments"]
     if isinstance(segments, list) and len(segments) > 1:
         lines.extend(
@@ -917,6 +958,11 @@ def _verify_backfill_ledger(root: Path, append_only_base_ref: str | None) -> lis
     return errors
 
 
+def _is_recovery_outcome(value: str | None) -> bool:
+    """A recovery-marked outcome carries a ``+recovery-`` methodology version."""
+    return bool(value) and RECOVERY_METHODOLOGY_TOKEN in value
+
+
 def _verify_outcome_summaries(
     root: Path,
     *,
@@ -939,6 +985,9 @@ def _verify_outcome_summaries(
         )
 
     ledger_by_manifest = {row["manifest_sha256"]: row for row in ledger_rows if row.get("manifest_sha256")}
+    for backfill_row in _read_csv_rows_optional(root / BACKFILL_LEDGER, LEDGER_COLUMNS):
+        if backfill_row.get("manifest_sha256"):
+            ledger_by_manifest.setdefault(backfill_row["manifest_sha256"], backfill_row)
     seen: set[tuple[str, str, str, str]] = set()
     for idx, row in enumerate(rows, start=2):
         key = (row["as_of_date"], row["delivery_date"], row["carrier"], row["manifest_sha256"])
@@ -968,7 +1017,11 @@ def _verify_outcome_summaries(
         ):
             errors.append(f"outcome summary line {idx} does not match referenced ledger row")
         else:
-            if ledger_row.get("prospective_or_backfill") != "prospective":
+            provenance = ledger_row.get("prospective_or_backfill")
+            if provenance == "backfill":
+                if not _is_recovery_outcome(row.get("outcome_methodology_version")):
+                    errors.append(f"outcome summary line {idx} references backfill ledger row without recovery methodology marker")
+            elif provenance != "prospective":
                 errors.append(f"outcome summary line {idx} references non-prospective ledger row")
             if ledger_row.get("valid_day_status") != "valid":
                 errors.append(f"outcome summary line {idx} references non-valid ledger row")
@@ -1187,10 +1240,15 @@ def _verify_report_rows(root: Path, markdown_path: Path, text: str, *, min_delay
         for row in outcome_rows
     }
     ledger_by_manifest = {row["manifest_sha256"]: row for row in ledger_rows if row.get("manifest_sha256")}
+    for backfill_row in _read_csv_rows_optional(root / BACKFILL_LEDGER, LEDGER_COLUMNS):
+        if backfill_row.get("manifest_sha256"):
+            ledger_by_manifest.setdefault(backfill_row["manifest_sha256"], backfill_row)
     corrected_manifests = {row["correction_of_manifest_sha256"] for row in ledger_rows if row.get("correction_of_manifest_sha256")}
     methodology_versions = {row.get("methodology_version", "") for row in report_rows if row.get("methodology_version")}
     if len(methodology_versions) > 1 and "## Methodology Segments" not in text:
         errors.append(f"report spanning multiple methodology versions lacks methodology segments: {rel}")
+    if any(_is_recovery_outcome(row.get("outcome_methodology_version")) for row in report_rows) and "## Recovery-Included Outcomes" not in text:
+        errors.append(f"report with recovery-backfilled outcomes lacks the recovery disclosure section: {rel}")
 
     start_date = metadata["start_date"]
     end_date = metadata["end_date"]
@@ -1209,7 +1267,11 @@ def _verify_report_rows(root: Path, markdown_path: Path, text: str, *, min_delay
         else:
             if row["manifest_sha256"] in corrected_manifests:
                 errors.append(f"report row {idx} uses superseded corrected manifest: {rel}")
-            if ledger["prospective_or_backfill"] != "prospective":
+            provenance = ledger.get("prospective_or_backfill")
+            if provenance == "backfill":
+                if not _is_recovery_outcome(row.get("outcome_methodology_version")):
+                    errors.append(f"report row {idx} references backfill ledger row without recovery methodology marker: {rel}")
+            elif provenance != "prospective":
                 errors.append(f"report row {idx} references non-prospective ledger row: {rel}")
             if ledger["valid_day_status"] != "valid":
                 errors.append(f"report row {idx} references non-valid ledger row: {rel}")
@@ -1570,7 +1632,7 @@ def _render_readme(summary: dict[str, object]) -> str:
             "## Public Artifacts",
             "",
             "- `hashes/daily_manifest_hashes.csv`: prospective public manifest hash ledger.",
-            "- `hashes/backfill_manifest_hashes.csv`: historical/backfill hash ledger, never counted in prospective reports.",
+            "- `hashes/backfill_manifest_hashes.csv`: historical/backfill hash ledger. Backfill rows are excluded from the prospective-only series, but explicitly recovery-marked rows may be counted in recovery-inclusive reports.",
             "- `hashes/timestamp_proofs.csv`: append-only timestamp proof ledger.",
             "- `hashes/opentimestamps/`: timestamp proof inputs and OpenTimestamps proof files.",
             "- `attestations/private_manifest/`: signed attestations that a public hash matched a private manifest.",
@@ -1585,7 +1647,9 @@ def _render_readme(summary: dict[str, object]) -> str:
             "",
             "## How To Read Rows",
             "",
-            "Normal prospective rows in `hashes/daily_manifest_hashes.csv` are the performance-bearing public record: each one asserts that a pre-deadline private manifest existed, was hash-published, attested, and later became eligible for delayed outcome reporting.",
+            "Normal prospective rows in `hashes/daily_manifest_hashes.csv` are the primary performance-bearing public record: each one asserts that a pre-deadline private manifest existed, was hash-published, attested, and later became eligible for delayed outcome reporting.",
+            "",
+            "Recovery-counted rows carry an `outcome_methodology_version` with `+recovery-`. They may reference `hashes/backfill_manifest_hashes.csv` only under the disclosed recovery methodology, and reports that include them must render a `## Recovery-Included Outcomes` section with prospective-only and recovery-inclusive totals.",
             "",
             "Exception rows in `releases/` are transparency records, not performance rows. A `publication_gap` records that no normal prospective row is asserted for that date. A `private_manifest_unrecoverable` row records that a public hash row remains public, but one restored private-vault artifact is unavailable and the public attestation is the surviving signed linkage.",
             "",
